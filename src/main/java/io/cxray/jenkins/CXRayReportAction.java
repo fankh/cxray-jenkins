@@ -3,6 +3,7 @@ package io.cxray.jenkins;
 import hudson.model.Run;
 import io.cxray.jenkins.local.Compliance;
 import io.cxray.jenkins.local.Finding;
+import io.cxray.jenkins.local.Suggestions;
 import java.util.Collections;
 import java.util.List;
 import jenkins.model.RunAction2;
@@ -88,4 +89,10 @@ public class CXRayReportAction implements RunAction2 {
 
     /** Concrete fix for a finding — for the report view. */
     public String remediation(Finding f) { return Compliance.remediation(f.check, f.title); }
+
+    /** Copy-paste OpenVEX to mark CVE findings non-exploitable (for the report view). */
+    public String getSuggestedVex() { return Suggestions.vex(getFindings()); }
+
+    /** Copy-paste .cxray/policy.json waivers for the non-CVE findings (for the report view). */
+    public String getSuggestedWaivers() { return Suggestions.waivers(getFindings()); }
 }
