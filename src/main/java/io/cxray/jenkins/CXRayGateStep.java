@@ -23,6 +23,7 @@ import io.cxray.jenkins.local.Finding;
 import io.cxray.jenkins.local.GateResult;
 import io.cxray.jenkins.local.LocalAnalyzers;
 import io.cxray.jenkins.policy.Policy;
+import io.cxray.jenkins.policy.Vex;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -50,6 +51,7 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
 
     private String mode = "local";
     private String failOn = "fail";
+    private String attestationPath; // when set, write an in-toto gate attestation here (both modes)
 
     // --- local mode ---
     private String configPath;
@@ -80,6 +82,9 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
 
     public String getFailOn() { return failOn; }
     @DataBoundSetter public void setFailOn(String failOn) { this.failOn = "review".equals(failOn) ? "review" : "fail"; }
+
+    public String getAttestationPath() { return attestationPath; }
+    @DataBoundSetter public void setAttestationPath(String v) { this.attestationPath = fix(v); }
 
     public String getConfigPath() { return configPath; }
     @DataBoundSetter public void setConfigPath(String v) { this.configPath = fix(v); }
@@ -125,12 +130,17 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
         if (policy != null) {
             result = policy.applyWaivers(result, log, java.time.LocalDate.now());
         }
+        Vex vex = Vex.load(workspace, log);
+        if (vex != null) {
+            result = vex.apply(result, log);
+        }
+        long now = System.currentTimeMillis();
 
         String target = "api".equals(mode)
                 ? (imageId != null ? ("image " + imageId)
                         : ((repo == null ? "" : repo + "/") + image + ":" + (tag == null ? "latest" : tag)))
                 : localTarget();
-        run.addAction(new CXRayReportAction(result.verdict, mode, target, result.findings, System.currentTimeMillis()));
+        run.addAction(new CXRayReportAction(result.verdict, mode, target, result.findings, now));
 
         for (Finding f : result.findings) {
             log.println(String.format("  [%s] %-8s %s — %s%s",
@@ -143,6 +153,13 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
         // Surface the verdict on the build page so a blocked build shows *why* at a glance.
         run.setDescription(describe(result));
 
+        String root = Jenkins.get().getRootUrl();
+        String buildUrl = root != null ? root + run.getUrl() : null;
+        if (attestationPath != null) {
+            Attestation.emit(workspace, attestationPath, result, mode, target,
+                    run.getParent().getFullName(), run.getNumber(), buildUrl, now, log);
+        }
+
         String effFailOn = (policy != null && policy.getFailOn() != null) ? policy.getFailOn()
                 : (failOn == null ? "fail" : failOn);
         boolean block = "fail".equals(result.verdict)
@@ -150,8 +167,6 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
         if (block) {
             CXRayGlobalConfiguration gc = CXRayGlobalConfiguration.get();
             if (gc != null && gc.getNotifyWebhookUrl() != null) {
-                String root = Jenkins.get().getRootUrl();
-                String buildUrl = root != null ? root + run.getUrl() : null;
                 Notifier.gateFailed(gc.getNotifyWebhookUrl(), result.verdict, mode, target,
                         result.findings.size(), buildUrl, gc.getTimeoutSec(), log);
             }
