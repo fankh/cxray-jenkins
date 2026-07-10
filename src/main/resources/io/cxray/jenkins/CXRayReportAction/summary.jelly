@@ -1,0 +1,10 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler">
+  <div style="margin:8px 0;">
+    <b>CXRay:</b>
+    <span style="font-weight:700;text-transform:uppercase;color:${it.verdictColor}">${it.verdict}</span>
+    <span style="color:#6B717D;"> — ${it.findingCount} finding(s) · ${it.target}</span>
+    <st:nbsp/>
+    <a href="${it.urlName}/">report</a>
+  </div>
+</j:jelly>

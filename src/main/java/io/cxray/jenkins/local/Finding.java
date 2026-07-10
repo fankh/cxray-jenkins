@@ -18,4 +18,11 @@ public class Finding {
         this.detail = detail;
         this.line = line;
     }
+
+    // bean getters (for the Jelly report view)
+    public String getCheck() { return check; }
+    public String getSeverity() { return severity; }
+    public String getTitle() { return title; }
+    public String getDetail() { return detail; }
+    public int getLine() { return line; }
 }

@@ -23,8 +23,10 @@ roadmap below. The plugin is a thin client — all policy comes from CXRay; it n
 - **P3 Scan-and-gate** ✅ — give a registry image (`repo`/`image`/`tag`) and the plugin scans it
   (`POST /image/check/repo`), polls `GET /image/{id}` until `nowAnalyzing=false`, then gates.
   Optional registry credentials for private pulls.
-- **P4–P5** ⏳ — a styled build "CXRay Report" tab + badge, `cxrayGate(...)` pipeline symbol +
-  Snippet Generator, `JenkinsRule`+WireMock tests, and the per-tool toxic-capability matrix.
+- **P4 Build report** ✅ — a persisted "CXRay Report" tab (findings table) + a build-page summary,
+  styled with the CXRay design tokens (severity as bold UPPERCASE colored text, not pill badges).
+- **P5** ⏳ — `cxrayGate(...)` pipeline symbol + Snippet Generator, `JenkinsRule`+WireMock tests,
+  the per-tool toxic-capability matrix, and producing the `.hpi`.
 
 ## Build & run
 

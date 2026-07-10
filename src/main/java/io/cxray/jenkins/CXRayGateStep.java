@@ -124,6 +124,12 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
         PrintStream log = listener.getLogger();
         GateResult result = "api".equals(mode) ? performApi(run, log) : performLocal(workspace, log);
 
+        String target = "api".equals(mode)
+                ? (imageId != null ? ("image " + imageId)
+                        : ((repo == null ? "" : repo + "/") + image + ":" + (tag == null ? "latest" : tag)))
+                : localTarget();
+        run.addAction(new CXRayReportAction(result.verdict, mode, target, result.findings, System.currentTimeMillis()));
+
         for (Finding f : result.findings) {
             log.println(String.format("  [%s] %-8s %s — %s%s",
                     f.check, f.severity.toUpperCase(), f.title, f.detail,
@@ -212,6 +218,14 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
         log.println("  " + name + ": " + r.verdict.toUpperCase() + " (" + r.findings.size() + ")");
         all.addAll(r.findings);
         return GateResult.worst(verdict, r.verdict);
+    }
+
+    private String localTarget() {
+        List<String> parts = new ArrayList<>();
+        if (configPath != null) parts.add(configPath);
+        if (manifestPath != null) parts.add(manifestPath);
+        if (modelFilePath != null) parts.add(modelFilePath);
+        return parts.isEmpty() ? "workspace" : String.join(", ", parts);
     }
 
     private static String read(FilePath ws, String path, PrintStream log) throws InterruptedException, IOException {
