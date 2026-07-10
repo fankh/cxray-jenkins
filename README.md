@@ -25,8 +25,11 @@ roadmap below. The plugin is a thin client — all policy comes from CXRay; it n
   Optional registry credentials for private pulls.
 - **P4 Build report** ✅ — a persisted "CXRay Report" tab (findings table) + a build-page summary,
   styled with the CXRay design tokens (severity as bold UPPERCASE colored text, not pill badges).
-- **P5** ⏳ — `cxrayGate(...)` pipeline symbol + Snippet Generator, `JenkinsRule`+WireMock tests,
-  the per-tool toxic-capability matrix, and producing the `.hpi`.
+- **P5 Polish** ✅ — `cxrayGate(...)` pipeline symbol + Snippet Generator, the per-tool
+  toxic-capability matrix (local), and `JenkinsRule` end-to-end tests.
+
+The five build phases are complete. Remaining follow-ups: WireMock tests for API mode, and
+publishing to the Jenkins Update Center.
 
 ## Build & run
 
@@ -51,11 +54,12 @@ Add build step **"CXRay Security Gate (local)"** and set any of:
 ### Pipeline
 
 ```groovy
-// declarative / scripted — works via SimpleBuildStep
-step([$class: 'CXRayGateStep',
-      configPath: 'mcp/server.json',
-      modelFilePath: 'Modelfile',
-      failOn: 'fail'])
+// clean symbol (Snippet Generator supported)
+cxrayGate mode: 'local',
+          configPath: 'mcp/server.json',
+          manifestPath: 'mcp/tools.json',
+          modelFilePath: 'Modelfile',
+          failOn: 'fail'
 ```
 
 The build **fails** when the worst verdict is `FAIL` (or `REVIEW` with `failOn=review`). A
@@ -96,6 +100,8 @@ ERROR (not a security FAILURE).
 - **Model runtime** (E18.2/E18.3): untrusted/unpinned `FROM`, http:// pull, poisoned baked-in
   `SYSTEM` prompt, `0.0.0.0` bind with no auth, inline secrets — with line numbers.
 - **Tool poisoning** (E19.1/E33.2): prompt-injection directives, hidden/bidi unicode, exfil phrasing.
+- **Toxic-capability matrix** (E22/M7): a single tool holding a dangerous capability *combination*
+  (exec+network, exec+secrets, network+secrets, …) — worse than two separate tools.
 
 Regexes are kept in sync with the CXRay console (`functions/*.ts`), the `cxray-gate` CLI
 (`tools/cxray-gate/posture.mjs`), and the backend (`AgentPostureService.java`).

@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nonnull;
 import jenkins.tasks.SimpleBuildStep;
+import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
@@ -237,6 +238,7 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
     }
 
     @Extension
+    @Symbol("cxrayGate")
     public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
 
         @Override

@@ -166,9 +166,11 @@ public final class LocalAnalyzers {
             verdict = GateResult.worst(verdict, GateResult.worst(t.verdict, id.verdict));
         }
         if (manifest != null) {
-            GateResult po = analyzePoison(manifest);
+            GateResult po = analyzePoison(manifest);          // text: injection / hidden-unicode / exfil
+            GateResult cap = CapabilityAnalyzer.analyze(manifest); // JSON: per-tool toxic-capability matrix
             all.addAll(po.findings);
-            verdict = GateResult.worst(verdict, po.verdict);
+            all.addAll(cap.findings);
+            verdict = GateResult.worst(verdict, GateResult.worst(po.verdict, cap.verdict));
         }
         if (model != null) {
             GateResult m = analyzeModel(model);
