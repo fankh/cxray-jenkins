@@ -20,9 +20,34 @@
   <f:radioBlock name="mode" value="api" title="CXRay API — gate an image scanned in CXRay"
                 checked="${instance.mode == 'api'}" inline="true">
     <f:entry title="Image ID" field="imageId"
-             description="A CXRay image id (already scanned). The scan-and-gate loop (an image ref) is a later phase.">
+             description="Gate an image already scanned in CXRay. Leave blank to scan-and-gate a registry image below.">
       <f:textbox/>
     </f:entry>
+
+    <f:section title="…or scan a registry image (scan-and-gate)">
+      <f:entry title="Registry / repo" field="repo"
+               description="Registry host or repository namespace (optional).">
+        <f:textbox/>
+      </f:entry>
+      <f:entry title="Image" field="image"
+               description="Image name to pull &amp; scan. Set this (instead of Image ID) to scan-and-gate.">
+        <f:textbox/>
+      </f:entry>
+      <f:entry title="Tag" field="tag" description="Image tag (default 'latest').">
+        <f:textbox default="latest"/>
+      </f:entry>
+      <f:entry title="Registry credentials" field="registryCredentialsId"
+               description="Username/password for a private registry pull (optional).">
+        <c:select/>
+      </f:entry>
+      <f:entry title="Scan timeout (s)" field="pollTimeoutSec" description="Fail if the scan doesn't finish in time.">
+        <f:number default="600"/>
+      </f:entry>
+      <f:entry title="Poll interval (s)" field="pollIntervalSec" description="How often to poll scan status (min 2).">
+        <f:number default="10"/>
+      </f:entry>
+    </f:section>
+
     <f:entry title="CXRay credentials" field="credentialsId"
              description="Username/password credential: access key (username) + secret key (password). IP-bound — register the agent's egress IP once.">
       <c:select/>

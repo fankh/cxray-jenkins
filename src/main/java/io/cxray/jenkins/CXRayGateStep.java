@@ -62,6 +62,14 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
     private boolean failOnKev = true;
     private String apiUrl; // overrides the global config
 
+    // --- api mode: scan-and-gate (P3) — set instead of imageId to scan a registry image first ---
+    private String repo;
+    private String image;
+    private String tag = "latest";
+    private String registryCredentialsId;
+    private int pollTimeoutSec = 600;
+    private int pollIntervalSec = 10;
+
     @DataBoundConstructor
     public CXRayGateStep() {
     }
@@ -91,6 +99,19 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
     @DataBoundSetter public void setFailOnKev(boolean v) { this.failOnKev = v; }
     public String getApiUrl() { return apiUrl; }
     @DataBoundSetter public void setApiUrl(String v) { this.apiUrl = fix(v); }
+
+    public String getRepo() { return repo; }
+    @DataBoundSetter public void setRepo(String v) { this.repo = fix(v); }
+    public String getImage() { return image; }
+    @DataBoundSetter public void setImage(String v) { this.image = fix(v); }
+    public String getTag() { return tag; }
+    @DataBoundSetter public void setTag(String v) { this.tag = (v == null || v.trim().isEmpty()) ? "latest" : v.trim(); }
+    public String getRegistryCredentialsId() { return registryCredentialsId; }
+    @DataBoundSetter public void setRegistryCredentialsId(String v) { this.registryCredentialsId = fix(v); }
+    public int getPollTimeoutSec() { return pollTimeoutSec; }
+    @DataBoundSetter public void setPollTimeoutSec(int v) { this.pollTimeoutSec = v > 0 ? v : 600; }
+    public int getPollIntervalSec() { return pollIntervalSec; }
+    @DataBoundSetter public void setPollIntervalSec(int v) { this.pollIntervalSec = v >= 2 ? v : 10; }
 
     private static String fix(String s) {
         return (s == null || s.trim().isEmpty()) ? null : s.trim();
@@ -132,9 +153,8 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
         return LocalAnalyzers.run(config, manifest, model);
     }
 
-    // ── Method A: CXRay API (gate an already-scanned image) ──
-    private GateResult performApi(Run<?, ?> run, PrintStream log) throws AbortException {
-        if (imageId == null) throw new AbortException("[CXRay] API mode needs an Image ID.");
+    // ── Method A: CXRay API (scan-and-gate, or gate an already-scanned image) ──
+    private GateResult performApi(Run<?, ?> run, PrintStream log) throws AbortException, InterruptedException {
         String base = apiUrl != null ? apiUrl : (CXRayGlobalConfiguration.get() != null ? CXRayGlobalConfiguration.get().getApiUrl() : null);
         if (base == null || base.isEmpty()) throw new AbortException("[CXRay] No API URL — set it in Manage Jenkins → System, or per-job.");
         if (credentialsId == null) throw new AbortException("[CXRay] API mode needs CXRay access-key credentials.");
@@ -144,26 +164,48 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
 
         int timeout = CXRayGlobalConfiguration.get() != null ? CXRayGlobalConfiguration.get().getTimeoutSec() : 30;
         CxrayClient client = new CxrayClient(base, c.getUsername(), c.getPassword().getPlainText(), timeout);
-        log.println("[CXRay] API gate against image " + imageId + " (" + base + ")");
 
         List<String> want = new ArrayList<>();
         for (String g : gates.split(",")) { g = g.trim().toLowerCase(); if (!g.isEmpty()) want.add(g); }
 
-        List<Finding> all = new ArrayList<>();
-        String verdict = "pass";
         try {
-            if (want.contains("cve")) verdict = merge(verdict, all, "CVE/KEV", client.cveGate(imageId, maxCvss, failOnKev), log);
-            if (want.contains("license")) verdict = merge(verdict, all, "License", client.licenseGate(imageId), log);
-            if (want.contains("secrets")) verdict = merge(verdict, all, "Secrets", client.secretsGate(imageId), log);
-            if (want.contains("ai")) verdict = merge(verdict, all, "AI supply-chain", client.aiGate(imageId), log);
+            String id = imageId;
+            if (id == null && image != null) {
+                // scan-and-gate: pull + scan the registry image, then poll to completion
+                String regUser = null, regPass = null;
+                if (registryCredentialsId != null) {
+                    StandardUsernamePasswordCredentials rc = CredentialsProvider.findCredentialById(
+                            registryCredentialsId, StandardUsernamePasswordCredentials.class, run, Collections.emptyList());
+                    if (rc != null) { regUser = rc.getUsername(); regPass = rc.getPassword().getPlainText(); }
+                }
+                String ref = (repo == null ? "" : repo + "/") + image + ":" + (tag == null ? "latest" : tag);
+                log.println("[CXRay] Scanning " + ref);
+                id = client.startScan(repo, image, tag, regUser, regPass);
+                log.println("[CXRay] Scan started — image " + id + "; polling (timeout " + pollTimeoutSec + "s, every " + pollIntervalSec + "s)…");
+                long deadline = System.currentTimeMillis() + pollTimeoutSec * 1000L;
+                while (client.isAnalyzing(id)) {
+                    if (System.currentTimeMillis() > deadline) {
+                        throw new AbortException("[CXRay] Scan timed out after " + pollTimeoutSec + "s (image " + id + ").");
+                    }
+                    Thread.sleep(pollIntervalSec * 1000L);
+                    log.println("[CXRay] …analyzing " + id);
+                }
+                log.println("[CXRay] Scan complete.");
+            }
+            if (id == null) throw new AbortException("[CXRay] API mode needs an Image ID, or repo/image/tag to scan.");
+
+            log.println("[CXRay] Gating image " + id + " (" + base + ")");
+            List<Finding> all = new ArrayList<>();
+            String verdict = "pass";
+            if (want.contains("cve")) verdict = merge(verdict, all, "CVE/KEV", client.cveGate(id, maxCvss, failOnKev), log);
+            if (want.contains("license")) verdict = merge(verdict, all, "License", client.licenseGate(id), log);
+            if (want.contains("secrets")) verdict = merge(verdict, all, "Secrets", client.secretsGate(id), log);
+            if (want.contains("ai")) verdict = merge(verdict, all, "AI supply-chain", client.aiGate(id), log);
+            return new GateResult(verdict, all);
         } catch (IOException e) {
-            // transport/auth error is a misconfiguration, not a security failure
+            // transport/auth/scan error is a misconfiguration, not a security failure
             throw new AbortException("[CXRay] API error: " + e.getMessage());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new AbortException("[CXRay] Interrupted.");
         }
-        return new GateResult(verdict, all);
     }
 
     private static String merge(String verdict, List<Finding> all, String name, GateResult r, PrintStream log) {

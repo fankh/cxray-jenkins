@@ -20,8 +20,11 @@ roadmap below. The plugin is a thin client — all policy comes from CXRay; it n
   Freestyle/Pipeline build step that fails the build on policy violation.
 - **P2 API gate** ✅ — gate an already-scanned image via the CXRay API (CVE/KEV · license · secrets ·
   AI supply-chain), Jenkins Credentials + global config, IP-bound access-key bearer.
-- **P3–P5** ⏳ — scan-and-gate loop (image ref → `check/repo` → poll), a styled build "CXRay Report"
-  tab, `cxrayGate(...)` pipeline symbol + Snippet Generator, and the per-tool toxic-capability matrix.
+- **P3 Scan-and-gate** ✅ — give a registry image (`repo`/`image`/`tag`) and the plugin scans it
+  (`POST /image/check/repo`), polls `GET /image/{id}` until `nowAnalyzing=false`, then gates.
+  Optional registry credentials for private pulls.
+- **P4–P5** ⏳ — a styled build "CXRay Report" tab + badge, `cxrayGate(...)` pipeline symbol +
+  Snippet Generator, `JenkinsRule`+WireMock tests, and the per-tool toxic-capability matrix.
 
 ## Build & run
 
@@ -66,9 +69,16 @@ misconfiguration (no inputs / missing files) reports an ERROR distinct from a se
    gate subset / `maxCvss` / `failOnKev`.
 
 ```groovy
+// gate an already-scanned image
 step([$class: 'CXRayGateStep', mode: 'api',
       imageId: env.CXRAY_IMAGE_ID, credentialsId: 'cxray-access-key',
       gates: 'cve,license,secrets,ai', maxCvss: 9.0, failOnKev: true, failOn: 'fail'])
+
+// scan-and-gate: pull + scan the image you just built, then gate
+step([$class: 'CXRayGateStep', mode: 'api',
+      repo: 'registry.example.com', image: 'my-service', tag: env.GIT_COMMIT,
+      credentialsId: 'cxray-access-key', registryCredentialsId: 'my-registry',
+      pollTimeoutSec: 900, failOn: 'fail'])
 ```
 
 The API gates are thin clients — they call `GET /image/cve/gate/{id}` · `/license/policy/{id}` ·
