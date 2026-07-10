@@ -60,6 +60,22 @@ public class CXRayGateStepTest {
     }
 
     @Test
+    public void dryRunReportsButDoesNotFail() throws Exception {
+        FreeStyleProject p = j.createFreeStyleProject();
+        p.setScm(file("Modelfile", "FROM http://mirror.example.com/model.gguf\nENV OLLAMA_HOST=0.0.0.0"));
+        CXRayGateStep s = localModelStep("Modelfile");
+        s.setDryRun(true);
+        p.getBuildersList().add(s);
+
+        // same risky Modelfile that FAILs above — dry-run must SUCCEED but still attach the fail report
+        FreeStyleBuild b = j.buildAndAssertSuccess(p);
+        CXRayReportAction a = b.getAction(CXRayReportAction.class);
+        assertNotNull(a);
+        assertEquals("fail", a.getVerdict());
+        assertTrue(a.getFindingCount() > 0);
+    }
+
+    @Test
     public void noInputsIsError() throws Exception {
         FreeStyleProject p = j.createFreeStyleProject();
         CXRayGateStep s = new CXRayGateStep();

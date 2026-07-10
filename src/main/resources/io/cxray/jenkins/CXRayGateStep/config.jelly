@@ -78,4 +78,8 @@
            description="Optional — workspace path to write a SARIF 2.1.0 report (upload to GitHub code scanning or archive). e.g. cxray.sarif">
     <f:textbox/>
   </f:entry>
+  <f:entry title="Dry run" field="dryRun"
+           description="Simulate: run the gate and write the report/attestation/SARIF, log what WOULD block, but never fail the build. Adoption/rollout lever.">
+    <f:checkbox/>
+  </f:entry>
 </j:jelly>

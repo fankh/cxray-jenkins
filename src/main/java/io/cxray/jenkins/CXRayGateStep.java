@@ -54,6 +54,7 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
     private String failOn = "fail";
     private String attestationPath; // when set, write an in-toto gate attestation here (both modes)
     private String sarifPath;       // when set, write a SARIF 2.1.0 report here (both modes)
+    private boolean dryRun;         // simulate: report what would block, but never fail the build
 
     // --- local mode ---
     private String configPath;
@@ -90,6 +91,9 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
 
     public String getSarifPath() { return sarifPath; }
     @DataBoundSetter public void setSarifPath(String v) { this.sarifPath = fix(v); }
+
+    public boolean isDryRun() { return dryRun; }
+    @DataBoundSetter public void setDryRun(boolean v) { this.dryRun = v; }
 
     public String getConfigPath() { return configPath; }
     @DataBoundSetter public void setConfigPath(String v) { this.configPath = fix(v); }
@@ -174,6 +178,13 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
                 : (failOn == null ? "fail" : failOn);
         boolean block = "fail".equals(result.verdict)
                 || ("review".equals(result.verdict) && "review".equals(effFailOn));
+        boolean effDryRun = (policy != null && policy.getDryRun() != null) ? policy.getDryRun() : dryRun;
+        if (block && effDryRun) {
+            log.println("[CXRay] DRY-RUN: gate " + result.verdict.toUpperCase()
+                    + " WOULD BLOCK (fail-on=" + effFailOn + ") — dry-run is on, build not failed.");
+            run.setDescription(describe(result) + " · dry-run (would block)");
+            return;
+        }
         if (block) {
             CXRayGlobalConfiguration gc = CXRayGlobalConfiguration.get();
             if (gc != null && gc.getNotifyWebhookUrl() != null) {

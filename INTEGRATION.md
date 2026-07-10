@@ -133,7 +133,7 @@ and the `cxray-gate` GitHub Action. Example in [`examples/policy.json`](examples
 }
 ```
 
-- **Overrides:** `failOn`, `gates`, `maxCvss`, `failOnKev` replace the job config when set.
+- **Overrides:** `failOn`, `gates`, `maxCvss`, `failOnKev`, `dryRun` replace the job config when set.
 - **Waivers:** an unexpired waiver whose `check` (and optional `id`, matched against a finding's title
   or detail) matches a finding **suppresses** it; the verdict is recomputed from what remains. Expired
   or unmatched waivers do nothing. `reason` is logged for audit. No policy file = job config unchanged.
@@ -182,6 +182,7 @@ Quick smoke test (local mode, no server): point `modelFilePath` at `examples/Mod
 | `failOn` | both | `fail` (default) or `review` |
 | `attestationPath` | both | optional workspace path to write an in-toto/SLSA gate attestation |
 | `sarifPath` | both | optional workspace path to write a SARIF 2.1.0 report (GitHub code scanning) |
+| `dryRun` | both | simulate — report what would block but never fail the build (rollout lever) |
 | `configPath` | local | mcp.json / server.json → transport + identity |
 | `manifestPath` | local | tools/list manifest → poisoning + toxic-capability |
 | `modelFilePath` | local | Ollama Modelfile / model-server config |

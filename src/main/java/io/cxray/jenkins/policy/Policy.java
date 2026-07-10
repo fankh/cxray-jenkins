@@ -39,12 +39,14 @@ public final class Policy {
     private List<String> gates;
     private Double maxCvss;
     private Boolean failOnKev;
+    private Boolean dryRun;
     private final List<Waiver> waivers = new ArrayList<>();
 
     public String getFailOn() { return failOn; }
     public List<String> getGates() { return gates; }
     public Double getMaxCvss() { return maxCvss; }
     public Boolean getFailOnKev() { return failOnKev; }
+    public Boolean getDryRun() { return dryRun; }
     public List<Waiver> getWaivers() { return waivers; }
 
     /** A time-boxed, owned exception that suppresses a matching finding. */
@@ -73,6 +75,7 @@ public final class Policy {
             }
             if (n.hasNonNull("maxCvss")) p.maxCvss = n.get("maxCvss").asDouble();
             if (n.hasNonNull("failOnKev")) p.failOnKev = n.get("failOnKev").asBoolean();
+            if (n.hasNonNull("dryRun")) p.dryRun = n.get("dryRun").asBoolean();
             if (n.has("waivers") && n.get("waivers").isArray()) {
                 for (JsonNode w : n.get("waivers")) {
                     Waiver wv = new Waiver();
