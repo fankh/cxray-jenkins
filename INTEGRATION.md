@@ -138,6 +138,15 @@ and the `cxray-gate` GitHub Action. Example in [`examples/policy.json`](examples
   or detail) matches a finding **suppresses** it; the verdict is recomputed from what remains. Expired
   or unmatched waivers do nothing. `reason` is logged for audit. No policy file = job config unchanged.
 
+**VEX (`.cxray/vex.json`)** — commit an [OpenVEX](https://openvex.dev) document and the gate drops CVE
+findings whose exploitability `status` is `not_affected` or `fixed`, recomputing the verdict. This is
+the standard, tool-neutral way to silence non-exploitable CVEs. Example: [`examples/vex.json`](examples/vex.json).
+
+**Attestation (`attestationPath`)** — set the step's *Attestation path* (e.g. `cxray-attestation.json`)
+to emit an [in-toto](https://in-toto.io) / SLSA-style Statement recording the verdict, severities, and a
+SHA-256 digest of the policy file. It's written **unsigned** — sign it with `cosign`/`in-toto` in a later
+pipeline step (`archiveArtifacts` it for audit).
+
 ## 7. Verify
 
 Run the job. In the build:
@@ -166,6 +175,7 @@ Quick smoke test (local mode, no server): point `modelFilePath` at `examples/Mod
 |---|---|---|
 | `mode` | both | `local` or `api` |
 | `failOn` | both | `fail` (default) or `review` |
+| `attestationPath` | both | optional workspace path to write an in-toto/SLSA gate attestation |
 | `configPath` | local | mcp.json / server.json → transport + identity |
 | `manifestPath` | local | tools/list manifest → poisoning + toxic-capability |
 | `modelFilePath` | local | Ollama Modelfile / model-server config |
