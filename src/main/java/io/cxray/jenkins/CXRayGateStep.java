@@ -22,6 +22,7 @@ import io.cxray.jenkins.api.CxrayClient;
 import io.cxray.jenkins.local.Finding;
 import io.cxray.jenkins.local.GateResult;
 import io.cxray.jenkins.local.LocalAnalyzers;
+import io.cxray.jenkins.policy.Policy;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -119,7 +120,11 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
                         Launcher launcher, TaskListener listener)
             throws InterruptedException, IOException {
         PrintStream log = listener.getLogger();
-        GateResult result = "api".equals(mode) ? performApi(run, log) : performLocal(workspace, log);
+        Policy policy = Policy.load(workspace, log);
+        GateResult result = "api".equals(mode) ? performApi(run, log, policy) : performLocal(workspace, log);
+        if (policy != null) {
+            result = policy.applyWaivers(result, log, java.time.LocalDate.now());
+        }
 
         String target = "api".equals(mode)
                 ? (imageId != null ? ("image " + imageId)
@@ -138,11 +143,13 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
         // Surface the verdict on the build page so a blocked build shows *why* at a glance.
         run.setDescription(describe(result));
 
+        String effFailOn = (policy != null && policy.getFailOn() != null) ? policy.getFailOn()
+                : (failOn == null ? "fail" : failOn);
         boolean block = "fail".equals(result.verdict)
-                || ("review".equals(result.verdict) && "review".equals(failOn));
+                || ("review".equals(result.verdict) && "review".equals(effFailOn));
         if (block) {
             throw new AbortException("[CXRay] Gate " + result.verdict.toUpperCase()
-                    + " — failing the build (fail-on=" + failOn + ").");
+                    + " — failing the build (fail-on=" + effFailOn + ").");
         }
         log.println("[CXRay] Gate passed.");
     }
@@ -160,7 +167,7 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
     }
 
     // ── Method A: CXRay API (scan-and-gate, or gate an already-scanned image) ──
-    private GateResult performApi(Run<?, ?> run, PrintStream log) throws AbortException, InterruptedException {
+    private GateResult performApi(Run<?, ?> run, PrintStream log, Policy policy) throws AbortException, InterruptedException {
         // API URL is admin-controlled (global config only) — a per-job override would let a job
         // configurer redirect the access-key bearer to an attacker host (SSRF credential exfil).
         CXRayGlobalConfiguration cfg = CXRayGlobalConfiguration.get();
@@ -173,8 +180,15 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
 
         CxrayClient client = new CxrayClient(base, c.getUsername(), c.getPassword().getPlainText(), cfg.getTimeoutSec());
 
+        // Policy-as-code overrides job config when present.
         List<String> want = new ArrayList<>();
-        for (String g : gates.split(",")) { g = g.trim().toLowerCase(); if (!g.isEmpty()) want.add(g); }
+        if (policy != null && policy.getGates() != null) {
+            want.addAll(policy.getGates());
+        } else {
+            for (String g : gates.split(",")) { g = g.trim().toLowerCase(); if (!g.isEmpty()) want.add(g); }
+        }
+        double effMaxCvss = (policy != null && policy.getMaxCvss() != null) ? policy.getMaxCvss() : maxCvss;
+        boolean effFailOnKev = (policy != null && policy.getFailOnKev() != null) ? policy.getFailOnKev() : failOnKev;
 
         try {
             String id = imageId;
@@ -205,7 +219,7 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
             log.println("[CXRay] Gating image " + id + " (" + base + ")");
             List<Finding> all = new ArrayList<>();
             String verdict = "pass";
-            if (want.contains("cve")) verdict = merge(verdict, all, "CVE/KEV", client.cveGate(id, maxCvss, failOnKev), log);
+            if (want.contains("cve")) verdict = merge(verdict, all, "CVE/KEV", client.cveGate(id, effMaxCvss, effFailOnKev), log);
             if (want.contains("license")) verdict = merge(verdict, all, "License", client.licenseGate(id), log);
             if (want.contains("secrets")) verdict = merge(verdict, all, "Secrets", client.secretsGate(id), log);
             if (want.contains("ai")) verdict = merge(verdict, all, "AI supply-chain", client.aiGate(id), log);

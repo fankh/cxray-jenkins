@@ -1,0 +1,14 @@
+{
+  "failOn": "fail",
+  "gates": ["cve", "license", "secrets", "ai"],
+  "maxCvss": 9.0,
+  "failOnKev": true,
+  "waivers": [
+    {
+      "check": "cve",
+      "id": "CVE-2024-0001",
+      "reason": "not reachable in our runtime; tracked in JIRA SEC-123",
+      "expires": "2026-12-31"
+    }
+  ]
+}

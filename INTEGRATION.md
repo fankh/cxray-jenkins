@@ -115,6 +115,29 @@ cxrayGate mode: 'api', imageId: env.CXRAY_IMAGE_ID,
 A ready-to-copy pipeline is in [`examples/Jenkinsfile`](examples/Jenkinsfile). Use the **Snippet
 Generator** (Pipeline Syntax → `cxrayGate`) to build the step visually.
 
+## 6b. (Optional) Policy-as-code — `.cxray/policy.json`
+
+Commit a `.cxray/policy.json` to the repo and the gate reads it from the workspace; any field present
+**overrides** the job config, so gate policy lives with the code and is honored identically in Jenkins
+and the `cxray-gate` GitHub Action. Example in [`examples/policy.json`](examples/policy.json):
+
+```json
+{
+  "failOn": "fail",
+  "gates": ["cve", "license", "secrets", "ai"],
+  "maxCvss": 9.0,
+  "failOnKev": true,
+  "waivers": [
+    { "check": "cve", "id": "CVE-2024-0001", "reason": "not reachable; SEC-123", "expires": "2026-12-31" }
+  ]
+}
+```
+
+- **Overrides:** `failOn`, `gates`, `maxCvss`, `failOnKev` replace the job config when set.
+- **Waivers:** an unexpired waiver whose `check` (and optional `id`, matched against a finding's title
+  or detail) matches a finding **suppresses** it; the verdict is recomputed from what remains. Expired
+  or unmatched waivers do nothing. `reason` is logged for audit. No policy file = job config unchanged.
+
 ## 7. Verify
 
 Run the job. In the build:
