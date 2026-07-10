@@ -173,7 +173,7 @@ Quick smoke test (local mode, no server): point `modelFilePath` at `examples/Mod
 | `repo` / `image` / `tag` | api | registry image to scan-and-gate |
 | `credentialsId` | api | CXRay access-key credential |
 | `registryCredentialsId` | api | private-registry pull credential |
-| `gates` | api | csv of `cve,license,secrets,ai` |
+| `gates` | api | csv of `cve,license,secrets,ai,mcp` (`mcp` gates `manifestPath` via the authoritative OWASP-Agentic gate) |
 | `maxCvss` / `failOnKev` | api | CVE gate thresholds (default 9.0 / true) |
 | `pollTimeoutSec` / `pollIntervalSec` | api | scan poll (default 600 / 10) |
 

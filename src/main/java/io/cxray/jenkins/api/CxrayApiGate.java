@@ -65,6 +65,23 @@ public final class CxrayApiGate {
         return new GateResult(verdict, f);
     }
 
+    /** POST /mcp/gate — OWASP-Agentic rules; verdict already pass/review/fail, one finding per non-pass rule. */
+    public static GateResult mcp(JsonNode r) {
+        List<Finding> f = new ArrayList<>();
+        String verdict = norm(txt(r, "verdict"));
+        JsonNode rules = r.get("rules");
+        if (isArray(rules)) for (JsonNode ru : rules) {
+            String status = txt(ru, "status");
+            if ("pass".equals(status)) continue;
+            String sev = "fail".equals(status) ? "critical" : "medium";
+            String owasp = txt(ru, "owasp");
+            String detail = txt(ru, "detail");
+            f.add(new Finding("mcp", sev, txt(ru, "title"),
+                    (detail.isEmpty() ? "" : detail + (owasp.isEmpty() ? "" : " · ")) + owasp, 0));
+        }
+        return new GateResult(verdict, f);
+    }
+
     // ── helpers ──
     private static String norm(String v) { return "fail".equals(v) ? "fail" : "review".equals(v) ? "review" : "pass"; }
     private static boolean isArray(JsonNode n) { return n != null && n.isArray(); }

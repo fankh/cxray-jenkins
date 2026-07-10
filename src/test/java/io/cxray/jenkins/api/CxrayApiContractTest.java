@@ -93,6 +93,19 @@ public class CxrayApiContractTest {
     }
 
     @Test
+    public void mcpGate_realShape_failsWithNonPassRules() throws Exception {
+        // PolicyGateService.evaluate(...) shape
+        GateResult g = CxrayApiGate.mcp(json("{"
+                + "\"serverId\":\"svc\",\"version\":\"v1\",\"verdict\":\"fail\",\"blocked\":true,"
+                + "\"policyPackVersion\":\"2026.1\",\"rules\":["
+                + "{\"id\":\"poisoning\",\"title\":\"No tool-descriptor poisoning\",\"owasp\":\"ASI01 Agentic Prompt Injection\",\"status\":\"fail\",\"detail\":\"1 injection signal(s)\"},"
+                + "{\"id\":\"exfil\",\"title\":\"No exfiltration\",\"owasp\":\"ASI04\",\"status\":\"review\",\"detail\":\"1 exfil signal(s)\"},"
+                + "{\"id\":\"drift\",\"title\":\"No integrity drift since pin\",\"owasp\":\"ASI04\",\"status\":\"pass\",\"detail\":\"ok\"}]}"));
+        assertEquals("fail", g.verdict);
+        assertEquals(2, g.findings.size()); // the two non-pass rules
+    }
+
+    @Test
     public void aiGate_realShape_reviewWhenOnlyReviewArtifacts() throws Exception {
         GateResult g = CxrayApiGate.ai(json("{"
                 + "\"imageId\":\"IMG\",\"verdict\":\"review\",\"aiLibCount\":2,"

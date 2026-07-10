@@ -111,6 +111,16 @@ public class CxrayClient {
         return CxrayApiGate.ai(get("/ai/scan/" + enc(imageId)));
     }
 
+    /** POST /mcp/gate — authoritative OWASP-Agentic gate for an MCP manifest. */
+    public GateResult mcpGate(String serverId, String version, String manifestJson)
+            throws IOException, InterruptedException {
+        ObjectNode body = mapper.createObjectNode();
+        body.put("serverId", (serverId == null || serverId.isEmpty()) ? "jenkins" : serverId);
+        if (version != null && !version.isEmpty()) body.put("version", version);
+        body.set("manifest", mapper.readTree(manifestJson)); // invalid JSON -> IOException (auth/config error)
+        return CxrayApiGate.mcp(post("/mcp/gate", mapper.writeValueAsString(body)));
+    }
+
     private static String enc(String s) {
         return URLEncoder.encode(s, StandardCharsets.UTF_8);
     }

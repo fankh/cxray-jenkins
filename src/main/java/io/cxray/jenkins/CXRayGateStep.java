@@ -121,7 +121,7 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
             throws InterruptedException, IOException {
         PrintStream log = listener.getLogger();
         Policy policy = Policy.load(workspace, log);
-        GateResult result = "api".equals(mode) ? performApi(run, log, policy) : performLocal(workspace, log);
+        GateResult result = "api".equals(mode) ? performApi(run, workspace, log, policy) : performLocal(workspace, log);
         if (policy != null) {
             result = policy.applyWaivers(result, log, java.time.LocalDate.now());
         }
@@ -174,7 +174,7 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
     }
 
     // ── Method A: CXRay API (scan-and-gate, or gate an already-scanned image) ──
-    private GateResult performApi(Run<?, ?> run, PrintStream log, Policy policy) throws AbortException, InterruptedException {
+    private GateResult performApi(Run<?, ?> run, FilePath workspace, PrintStream log, Policy policy) throws AbortException, InterruptedException, IOException {
         // API URL is admin-controlled (global config only) — a per-job override would let a job
         // configurer redirect the access-key bearer to an attacker host (SSRF credential exfil).
         CXRayGlobalConfiguration cfg = CXRayGlobalConfiguration.get();
@@ -230,6 +230,16 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
             if (want.contains("license")) verdict = merge(verdict, all, "License", client.licenseGate(id), log);
             if (want.contains("secrets")) verdict = merge(verdict, all, "Secrets", client.secretsGate(id), log);
             if (want.contains("ai")) verdict = merge(verdict, all, "AI supply-chain", client.aiGate(id), log);
+            if (want.contains("mcp")) {
+                String manifest = read(workspace, manifestPath, log);
+                if (manifest == null) {
+                    log.println("  MCP: skipped — no manifestPath to gate (set manifestPath to a tools/list manifest).");
+                } else {
+                    String serverId = image != null ? image : (imageId != null ? imageId : "jenkins");
+                    verdict = merge(verdict, all, "MCP (OWASP-Agentic)",
+                            client.mcpGate(serverId, tag, manifest), log);
+                }
+            }
             return new GateResult(verdict, all);
         } catch (IOException e) {
             // transport/auth/scan error is a misconfiguration, not a security failure

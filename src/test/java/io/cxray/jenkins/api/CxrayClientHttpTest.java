@@ -60,6 +60,10 @@ public class CxrayClientHttpTest {
                 body = "{\"verdict\":\"fail\",\"findings\":[{\"severity\":\"high\",\"kind\":\"aws-key\",\"path\":\"app\",\"fileName\":\".env\"}]}";
             } else if (path.startsWith("/ai/scan/")) {
                 body = "{\"verdict\":\"fail\",\"unsafeArtifactCount\":2,\"reviewArtifactCount\":1}";
+            } else if (path.equals("/mcp/gate")) {
+                body = "{\"serverId\":\"svc\",\"verdict\":\"fail\",\"rules\":["
+                        + "{\"id\":\"poisoning\",\"title\":\"No poisoning\",\"owasp\":\"ASI01\",\"status\":\"fail\",\"detail\":\"1 signal\"},"
+                        + "{\"id\":\"drift\",\"title\":\"No drift\",\"owasp\":\"ASI04\",\"status\":\"pass\",\"detail\":\"ok\"}]}";
             } else {
                 body = "{}";
                 code = 404;
@@ -123,6 +127,17 @@ public class CxrayClientHttpTest {
     public void aiGateFailsOnUnsafeArtifacts() throws Exception {
         GateResult g = new CxrayClient(base, "AK", "SK", 5).aiGate("IMG-1");
         assertEquals("fail", g.verdict);
+    }
+
+    @Test
+    public void mcpGate_postsManifestAndNormalizesRules() throws Exception {
+        CxrayClient c = new CxrayClient(base, "AK", "SK", 5);
+        GateResult g = c.mcpGate("svc", "v1", "{\"tools\":[{\"name\":\"run\"}]}");
+        assertEquals("fail", g.verdict);
+        assertEquals(1, g.findings.size());                 // only the non-pass rule
+        assertEquals(Auth.bearer("AK", "SK"), lastAuth);    // authenticated POST
+        assertTrue(lastBody.contains("\"serverId\":\"svc\""));
+        assertTrue(lastBody.contains("\"manifest\""));
     }
 
     @Test
