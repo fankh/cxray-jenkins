@@ -7,6 +7,15 @@ engineering tasks live in [`ROADMAP.md`](ROADMAP.md); this file is the strategic
 > Scope note: this backlog spans multiple repos. It lives here because that's where we're working;
 > relocate to the product repo when convenient. IDs (`E#`, `T#`) are stable references.
 
+> **Status (2026-07-10):** A recon confirmed the entire parent plan (agent risk-depth `/mcp/depth`,
+> AI supply-chain `/ai/scan`, CVE gate, secrets gate, MCP `/mcp/gate`, the JWT access-key fallback,
+> gate-override audit, the ProgressBar fix, capability matrix, AI Components, dashboard depth) is
+> **already implemented and shipped** in `cxray-main`/`cxray-console`. The plugin-side "Now/Next"
+> items below are **done** (see the plugin `CHANGELOG`): findings enrichment (T5.1/T6.1/T4.1),
+> contract test (T4.5/D2), policy-as-code (T3.1), notifications (T7.1), and MCP-gate-in-API (T2.3/C2).
+> What remains are the **[Next]/[Later] product epics** — they need specs/decisions and deploy the
+> live app, so they are not auto-implemented. Pick from §5 to schedule the next build.
+
 ---
 
 ## 1. Product thesis — where we win
@@ -42,37 +51,37 @@ Size = S/M/L. Prune and re-tag freely.
 ### E2 — Agentic runtime & posture *(measure)*
 - [ ] **T2.1** [Now] M — Ship the agent risk-depth surface (`/mcp/depth` + dashboard + `/mcp` matrix) from the parent plan.
 - [ ] **T2.2** [Now] S — Durable per-pin posture history (identity/transport/capability) trends over time — regression alerts on drift.
-- [ ] **T2.3** [Next] M — MCP gate in CI (plugin + Action) — block on poisoning/drift/toxic-capability, not just container gates.
+- [x] **T2.3** ✅ [Next] M — MCP gate in CI (plugin + Action) — block on poisoning/drift/toxic-capability, not just container gates.
 - [ ] **T2.4** [Next] M — Toxic-capability policy tuning: per-org allow/deny of capability pairs; justification workflow.
 - [ ] **T2.5** [Later] L — Runtime/observed-behavior posture (what the agent *did*) vs declared Agent-BOM — declared-vs-actual diff.
 
 ### E3 — Policy-as-Code & governance
-- [ ] **T3.1** [Now] M — A single declarative policy file (repo-committed) the gate reads: thresholds, allow/deny lists, per-gate on/off, waivers. One source of truth for Jenkins + Action + console.
-- [ ] **T3.2** [Next] M — Waivers/exceptions with expiry + owner + reason; enforced centrally, audited (extend the gate-override audit).
+- [x] **T3.1** ✅ [Now] M — A single declarative policy file (repo-committed) the gate reads: thresholds, allow/deny lists, per-gate on/off, waivers. One source of truth for Jenkins + Action + console.
+- [x] **T3.2** ✅ [Next] M — Waivers/exceptions with expiry + owner + reason; enforced centrally, audited (extend the gate-override audit).
 - [ ] **T3.3** [Next] S — Policy inheritance: org default → team → repo overrides.
 - [ ] **T3.4** [Later] M — "Policy simulation" / dry-run: show what *would* block before enforcing (adoption lever).
 
 ### E4 — Universal CI/CD gate (coverage)
-- [ ] **T4.1** [Now] S — Jenkins plugin: PR/commit status + human-readable "why blocked" (ROADMAP C1).
+- [x] **T4.1** ✅ [Now] S — Jenkins plugin: PR/commit status + human-readable "why blocked" (ROADMAP C1).
 - [ ] **T4.2** [Next] M — GitLab CI + Azure DevOps + Bitbucket templates (parity with the GitHub Action).
 - [ ] **T4.3** [Next] S — Container-native gate: an admission-webhook / `kubectl` mode reusing the same verdicts (shift-right).
 - [ ] **T4.4** [Later] M — Pre-commit / IDE hook for the local (offline) checks — earliest possible feedback.
-- [ ] **T4.5** [Now] S — Keep plugin + `cxray-gate` CLI normalization identical (shared contract test) — ROADMAP D2.
+- [x] **T4.5** ✅ [Now] S — Keep plugin + `cxray-gate` CLI normalization identical (shared contract test) — ROADMAP D2.
 
 ### E5 — Evidence, attestation & compliance
-- [ ] **T5.1** [Now] M — **Compliance mapping matrix** (see §3) — map every check to OWASP LLM/ASI, MITRE ATLAS, NIST AI RMF/SSDF, SLSA, EU CRA/AI Act, Korea SBOM. Surface the mapping in reports.
+- [x] **T5.1** ✅ [Now] M — **Compliance mapping matrix** (see §3) — map every check to OWASP LLM/ASI, MITRE ATLAS, NIST AI RMF/SSDF, SLSA, EU CRA/AI Act, Korea SBOM. Surface the mapping in reports.
 - [ ] **T5.2** [Next] M — Signed gate evidence: emit an in-toto/SLSA-style attestation per gated build (verdict + inputs + policy hash) for audit.
 - [ ] **T5.3** [Next] M — SBOM export/ingest hardening: CycloneDX + SPDX in/out; VEX support to suppress non-exploitable CVEs.
 - [ ] **T5.4** [Later] M — Compliance report pack (per release / per repo) mappable to an auditor's control list.
 
 ### E6 — Developer experience & remediation
-- [ ] **T6.1** [Now] S — Every finding ships a concrete fix + a copy-paste remediation (pin version, drop capability, convert model format).
+- [x] **T6.1** ✅ [Now] S — Every finding ships a concrete fix + a copy-paste remediation (pin version, drop capability, convert model format).
 - [ ] **T6.2** [Next] M — Auto-fix PRs where safe (bump to a non-vulnerable version, tighten an MCP manifest).
 - [ ] **T6.3** [Next] S — False-positive feedback loop: one-click "not exploitable" → VEX + policy waiver.
 - [ ] **T6.4** [Later] S — Noise budget: rank findings by exploitability (EPSS/KEV) so gates fail on what matters.
 
 ### E7 — Integrations & ecosystem
-- [ ] **T7.1** [Next] S — Notifications: Slack / Teams / email on gate FAIL with the report link.
+- [x] **T7.1** ✅ [Next] S — Notifications: Slack / Teams / email on gate FAIL with the report link.
 - [ ] **T7.2** [Next] M — Ticketing: Jira / GitHub Issues auto-file on new critical findings.
 - [ ] **T7.3** [Next] S — SIEM/SOAR: emit gate + posture events (webhook / syslog) — ties to the MxTac SOC console angle.
 - [ ] **T7.4** [Later] M — Registry/artifact integrations (Harbor, ECR/GCR/ACR) for scan-on-push.
