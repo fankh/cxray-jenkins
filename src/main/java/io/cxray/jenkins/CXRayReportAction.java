@@ -1,6 +1,7 @@
 package io.cxray.jenkins;
 
 import hudson.model.Run;
+import io.cxray.jenkins.local.Compliance;
 import io.cxray.jenkins.local.Finding;
 import java.util.Collections;
 import java.util.List;
@@ -81,4 +82,10 @@ public class CXRayReportAction implements RunAction2 {
     }
 
     public String getVerdictColor() { return color(verdict); }
+
+    /** Framework references a finding evidences (OWASP LLM / ASI / ATLAS) — for the report view. */
+    public String frameworks(Finding f) { return Compliance.frameworks(f.check, f.title); }
+
+    /** Concrete fix for a finding — for the report view. */
+    public String remediation(Finding f) { return Compliance.remediation(f.check, f.title); }
 }

@@ -135,6 +135,9 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
         log.println("[CXRay] Verdict: " + result.verdict.toUpperCase()
                 + " (" + result.findings.size() + " finding" + (result.findings.size() == 1 ? "" : "s") + ")");
 
+        // Surface the verdict on the build page so a blocked build shows *why* at a glance.
+        run.setDescription(describe(result));
+
         boolean block = "fail".equals(result.verdict)
                 || ("review".equals(result.verdict) && "review".equals(failOn));
         if (block) {
@@ -225,6 +228,28 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
         if (manifestPath != null) parts.add(manifestPath);
         if (modelFilePath != null) parts.add(modelFilePath);
         return parts.isEmpty() ? "workspace" : String.join(", ", parts);
+    }
+
+    /** Compact one-line build description: verdict + severity tally (shows *why* a build blocked). */
+    private static String describe(GateResult result) {
+        int crit = 0, high = 0, other = 0;
+        for (Finding f : result.findings) {
+            String s = f.severity == null ? "" : f.severity.toLowerCase();
+            if ("critical".equals(s)) crit++;
+            else if ("high".equals(s)) high++;
+            else other++;
+        }
+        StringBuilder sb = new StringBuilder("CXRay: ").append(result.verdict.toUpperCase());
+        if (!result.findings.isEmpty()) {
+            sb.append(" — ").append(result.findings.size()).append(" finding")
+              .append(result.findings.size() == 1 ? "" : "s");
+            StringBuilder by = new StringBuilder();
+            if (crit > 0) by.append(crit).append(" critical");
+            if (high > 0) by.append(by.length() > 0 ? ", " : "").append(high).append(" high");
+            if (other > 0) by.append(by.length() > 0 ? ", " : "").append(other).append(" other");
+            if (by.length() > 0) sb.append(" (").append(by).append(")");
+        }
+        return sb.toString();
     }
 
     private static String read(FilePath ws, String path, PrintStream log) throws InterruptedException, IOException {
