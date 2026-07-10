@@ -1,0 +1,13 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+  <f:section title="CXRay">
+    <f:entry title="API URL" field="apiUrl"
+             description="CXRay console origin + /api, e.g. https://console.example/api. Used by Method A (API scan/gate). Leave blank for local-only usage.">
+      <f:textbox/>
+    </f:entry>
+    <f:entry title="Timeout (seconds)" field="timeoutSec"
+             description="Per-request timeout for CXRay API calls.">
+      <f:number default="30" clazz="positive-number"/>
+    </f:entry>
+  </f:section>
+</j:jelly>

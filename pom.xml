@@ -23,8 +23,7 @@
   <url>https://github.com/fankh/cxray-jenkins</url>
 
   <properties>
-    <!-- P1 (local/offline gate) uses only Jenkins core APIs — no extra plugin deps.
-         Java level is derived from jenkins.version by the parent (2.462.x => Java 17). -->
+    <!-- Java level is derived from jenkins.version by the parent (2.462.x => Java 17). -->
     <jenkins.version>2.462.3</jenkins.version>
   </properties>
 
@@ -41,7 +40,30 @@
     </pluginRepository>
   </pluginRepositories>
 
-  <!-- No <dependencies> for P1: SimpleBuildStep / Builder / BuildStepDescriptor / FilePath are all
-       in Jenkins core. Method A (API) adds credentials + jackson2-api + workflow-step-api via the
-       Jenkins BOM in P2/P5 (a <dependencyManagement> import of io.jenkins.tools.bom). -->
+  <dependencyManagement>
+    <dependencies>
+      <!-- The Jenkins plugin BOM aligns plugin dependency versions to jenkins.version.
+           VERIFY/BUMP to the current bom-2.462.x release: https://github.com/jenkinsci/bom/releases -->
+      <dependency>
+        <groupId>io.jenkins.tools.bom</groupId>
+        <artifactId>bom-2.462.x</artifactId>
+        <version>3413.v0d896b_76a_30d</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+    <!-- Method A (API): credentials + Jackson. Method B (local) needs none of these.
+         Core APIs (SimpleBuildStep/Builder/FilePath/GlobalConfiguration) come from jenkins.version. -->
+    <dependency>
+      <groupId>org.jenkins-ci.plugins</groupId>
+      <artifactId>credentials</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jenkins.plugins</groupId>
+      <artifactId>jackson2-api</artifactId>
+    </dependency>
+  </dependencies>
 </project>

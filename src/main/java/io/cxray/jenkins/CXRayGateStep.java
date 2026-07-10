@@ -1,62 +1,96 @@
 package io.cxray.jenkins;
 
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
+import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractProject;
+import hudson.model.Item;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import hudson.security.ACL;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import io.cxray.jenkins.api.CxrayClient;
 import io.cxray.jenkins.local.Finding;
 import io.cxray.jenkins.local.GateResult;
 import io.cxray.jenkins.local.LocalAnalyzers;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import javax.annotation.Nonnull;
 import jenkins.tasks.SimpleBuildStep;
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
 /**
- * CXRay Security Gate — <b>Method B (local / offline)</b>.
- *
- * <p>Analyzes agent/AI-security artifacts in the workspace with no CXRay server and no credentials:
- * an MCP server config (transport + identity posture), a tool manifest (poisoning), and/or an
- * Ollama Modelfile / model-server config (supply-chain &amp; exposure). Fails the build when the
- * worst verdict is {@code fail} (or {@code review} when {@code failOn=review}). Works in Freestyle
- * and Pipeline (via {@link SimpleBuildStep}).
- *
- * <p>Method A (CXRay API scan-and-gate) is added in a later phase.
+ * CXRay Security Gate — two methods, selected by {@link #mode}:
+ * <ul>
+ *   <li><b>local</b> — offline agent/AI-security analysis of workspace files (no server, no creds).</li>
+ *   <li><b>api</b> — gate an image already scanned in CXRay via the API (scan-and-gate loop is P3).</li>
+ * </ul>
+ * Fails the build when the worst verdict is {@code fail} (or {@code review} when {@code failOn=review}).
+ * A misconfiguration reports a distinct ERROR (not a security FAILURE).
  */
 public class CXRayGateStep extends Builder implements SimpleBuildStep {
 
-    private String configPath;     // mcp.json / server.json  -> transport + identity
-    private String manifestPath;   // tools/list manifest     -> poisoning
-    private String modelFilePath;  // Ollama Modelfile        -> model runtime
+    private String mode = "local";
     private String failOn = "fail";
+
+    // --- local mode ---
+    private String configPath;
+    private String manifestPath;
+    private String modelFilePath;
+
+    // --- api mode ---
+    private String imageId;
+    private String credentialsId;
+    private String gates = "cve,license,secrets,ai";
+    private double maxCvss = 9.0;
+    private boolean failOnKev = true;
+    private String apiUrl; // overrides the global config
 
     @DataBoundConstructor
     public CXRayGateStep() {
-        // all inputs are optional and set via @DataBoundSetter
     }
 
-    public String getConfigPath() { return configPath; }
-    @DataBoundSetter public void setConfigPath(String configPath) { this.configPath = fix(configPath); }
-
-    public String getManifestPath() { return manifestPath; }
-    @DataBoundSetter public void setManifestPath(String manifestPath) { this.manifestPath = fix(manifestPath); }
-
-    public String getModelFilePath() { return modelFilePath; }
-    @DataBoundSetter public void setModelFilePath(String modelFilePath) { this.modelFilePath = fix(modelFilePath); }
+    public String getMode() { return mode; }
+    @DataBoundSetter public void setMode(String mode) { this.mode = "api".equals(mode) ? "api" : "local"; }
 
     public String getFailOn() { return failOn; }
     @DataBoundSetter public void setFailOn(String failOn) { this.failOn = "review".equals(failOn) ? "review" : "fail"; }
+
+    public String getConfigPath() { return configPath; }
+    @DataBoundSetter public void setConfigPath(String v) { this.configPath = fix(v); }
+    public String getManifestPath() { return manifestPath; }
+    @DataBoundSetter public void setManifestPath(String v) { this.manifestPath = fix(v); }
+    public String getModelFilePath() { return modelFilePath; }
+    @DataBoundSetter public void setModelFilePath(String v) { this.modelFilePath = fix(v); }
+
+    public String getImageId() { return imageId; }
+    @DataBoundSetter public void setImageId(String v) { this.imageId = fix(v); }
+    public String getCredentialsId() { return credentialsId; }
+    @DataBoundSetter public void setCredentialsId(String v) { this.credentialsId = fix(v); }
+    public String getGates() { return gates; }
+    @DataBoundSetter public void setGates(String v) { this.gates = (v == null || v.trim().isEmpty()) ? "cve,license,secrets,ai" : v.trim(); }
+    public double getMaxCvss() { return maxCvss; }
+    @DataBoundSetter public void setMaxCvss(double v) { this.maxCvss = v; }
+    public boolean isFailOnKev() { return failOnKev; }
+    @DataBoundSetter public void setFailOnKev(boolean v) { this.failOnKev = v; }
+    public String getApiUrl() { return apiUrl; }
+    @DataBoundSetter public void setApiUrl(String v) { this.apiUrl = fix(v); }
 
     private static String fix(String s) {
         return (s == null || s.trim().isEmpty()) ? null : s.trim();
@@ -67,17 +101,8 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
                         @Nonnull Launcher launcher, @Nonnull TaskListener listener)
             throws InterruptedException, IOException {
         PrintStream log = listener.getLogger();
-        log.println("[CXRay] Local (offline) agent-security gate");
+        GateResult result = "api".equals(mode) ? performApi(run, log) : performLocal(workspace, log);
 
-        String config = read(workspace, configPath, log);
-        String manifest = read(workspace, manifestPath, log);
-        String model = read(workspace, modelFilePath, log);
-        if (config == null && manifest == null && model == null) {
-            // misconfiguration, not a security finding
-            throw new AbortException("[CXRay] No inputs — set at least one of configPath / manifestPath / modelFilePath.");
-        }
-
-        GateResult result = LocalAnalyzers.run(config, manifest, model);
         for (Finding f : result.findings) {
             log.println(String.format("  [%s] %-8s %s — %s%s",
                     f.check, f.severity.toUpperCase(), f.title, f.detail,
@@ -95,13 +120,62 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
         log.println("[CXRay] Gate passed.");
     }
 
+    // ── Method B: local/offline ──
+    private GateResult performLocal(FilePath workspace, PrintStream log) throws InterruptedException, IOException {
+        log.println("[CXRay] Local (offline) agent-security gate");
+        String config = read(workspace, configPath, log);
+        String manifest = read(workspace, manifestPath, log);
+        String model = read(workspace, modelFilePath, log);
+        if (config == null && manifest == null && model == null) {
+            throw new AbortException("[CXRay] No inputs — set at least one of configPath / manifestPath / modelFilePath.");
+        }
+        return LocalAnalyzers.run(config, manifest, model);
+    }
+
+    // ── Method A: CXRay API (gate an already-scanned image) ──
+    private GateResult performApi(Run<?, ?> run, PrintStream log) throws AbortException {
+        if (imageId == null) throw new AbortException("[CXRay] API mode needs an Image ID.");
+        String base = apiUrl != null ? apiUrl : (CXRayGlobalConfiguration.get() != null ? CXRayGlobalConfiguration.get().getApiUrl() : null);
+        if (base == null || base.isEmpty()) throw new AbortException("[CXRay] No API URL — set it in Manage Jenkins → System, or per-job.");
+        if (credentialsId == null) throw new AbortException("[CXRay] API mode needs CXRay access-key credentials.");
+        StandardUsernamePasswordCredentials c = CredentialsProvider.findCredentialById(
+                credentialsId, StandardUsernamePasswordCredentials.class, run, Collections.emptyList());
+        if (c == null) throw new AbortException("[CXRay] Credentials not found: " + credentialsId);
+
+        int timeout = CXRayGlobalConfiguration.get() != null ? CXRayGlobalConfiguration.get().getTimeoutSec() : 30;
+        CxrayClient client = new CxrayClient(base, c.getUsername(), c.getPassword().getPlainText(), timeout);
+        log.println("[CXRay] API gate against image " + imageId + " (" + base + ")");
+
+        List<String> want = new ArrayList<>();
+        for (String g : gates.split(",")) { g = g.trim().toLowerCase(); if (!g.isEmpty()) want.add(g); }
+
+        List<Finding> all = new ArrayList<>();
+        String verdict = "pass";
+        try {
+            if (want.contains("cve")) verdict = merge(verdict, all, "CVE/KEV", client.cveGate(imageId, maxCvss, failOnKev), log);
+            if (want.contains("license")) verdict = merge(verdict, all, "License", client.licenseGate(imageId), log);
+            if (want.contains("secrets")) verdict = merge(verdict, all, "Secrets", client.secretsGate(imageId), log);
+            if (want.contains("ai")) verdict = merge(verdict, all, "AI supply-chain", client.aiGate(imageId), log);
+        } catch (IOException e) {
+            // transport/auth error is a misconfiguration, not a security failure
+            throw new AbortException("[CXRay] API error: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AbortException("[CXRay] Interrupted.");
+        }
+        return new GateResult(verdict, all);
+    }
+
+    private static String merge(String verdict, List<Finding> all, String name, GateResult r, PrintStream log) {
+        log.println("  " + name + ": " + r.verdict.toUpperCase() + " (" + r.findings.size() + ")");
+        all.addAll(r.findings);
+        return GateResult.worst(verdict, r.verdict);
+    }
+
     private static String read(FilePath ws, String path, PrintStream log) throws InterruptedException, IOException {
         if (path == null) return null;
         FilePath fp = ws.child(path);
-        if (!fp.exists()) {
-            log.println("[CXRay] WARNING: file not found in workspace: " + path);
-            return null;
-        }
+        if (!fp.exists()) { log.println("[CXRay] WARNING: file not found in workspace: " + path); return null; }
         log.println("[CXRay] Reading " + path);
         return fp.readToString();
     }
@@ -117,7 +191,7 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
         @Nonnull
         @Override
         public String getDisplayName() {
-            return "CXRay Security Gate (local)";
+            return "CXRay Security Gate";
         }
 
         public ListBoxModel doFillFailOnItems() {
@@ -127,13 +201,20 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
             return m;
         }
 
-        public FormValidation doCheckConfigPath(@QueryParameter String value,
-                                                @QueryParameter String manifestPath,
-                                                @QueryParameter String modelFilePath) {
-            if ((value == null || value.trim().isEmpty())
-                    && (manifestPath == null || manifestPath.trim().isEmpty())
-                    && (modelFilePath == null || modelFilePath.trim().isEmpty())) {
-                return FormValidation.warning("Set at least one of config / manifest / model file.");
+        public ListBoxModel doFillCredentialsIdItems(@AncestorInPath Item item, @QueryParameter String credentialsId) {
+            StandardListBoxModel result = new StandardListBoxModel();
+            if (item != null && !item.hasPermission(Item.CONFIGURE)) {
+                return result.includeCurrentValue(credentialsId);
+            }
+            return result.includeEmptyValue()
+                    .includeMatchingAs(ACL.SYSTEM, item, StandardUsernamePasswordCredentials.class,
+                            Collections.emptyList(), CredentialsMatchers.always())
+                    .includeCurrentValue(credentialsId);
+        }
+
+        public FormValidation doCheckImageId(@QueryParameter String value, @QueryParameter String mode) {
+            if ("api".equals(mode) && (value == null || value.trim().isEmpty())) {
+                return FormValidation.warning("API mode needs an Image ID.");
             }
             return FormValidation.ok();
         }

@@ -18,8 +18,10 @@ roadmap below. The plugin is a thin client — all policy comes from CXRay; it n
 - **P0 Scaffold** ✅ — Maven `hpi`, Jenkins 2.462.x LTS + Java 17.
 - **P1 Local gate** ✅ — offline analyzers (transport · identity · model-runtime · poisoning) + a
   Freestyle/Pipeline build step that fails the build on policy violation.
-- **P2–P5** ⏳ — CXRay API scan-and-gate, credentials, a styled build "CXRay Report" tab,
-  `cxrayGate(...)` pipeline symbol + Snippet Generator, and the per-tool toxic-capability matrix.
+- **P2 API gate** ✅ — gate an already-scanned image via the CXRay API (CVE/KEV · license · secrets ·
+  AI supply-chain), Jenkins Credentials + global config, IP-bound access-key bearer.
+- **P3–P5** ⏳ — scan-and-gate loop (image ref → `check/repo` → poll), a styled build "CXRay Report"
+  tab, `cxrayGate(...)` pipeline symbol + Snippet Generator, and the per-tool toxic-capability matrix.
 
 ## Build & run
 
@@ -53,6 +55,25 @@ step([$class: 'CXRayGateStep',
 
 The build **fails** when the worst verdict is `FAIL` (or `REVIEW` with `failOn=review`). A
 misconfiguration (no inputs / missing files) reports an ERROR distinct from a security FAILURE.
+
+### Method A — CXRay API (gate an already-scanned image)
+
+1. **Global config** (Manage Jenkins → System → CXRay): set the API URL (console origin + `/api`).
+2. **Credentials**: add a *Username/Password* credential — **username = access key**, **password =
+   secret key**. The key is IP-bound, so register the Jenkins agent's egress IP with CXRay once (the
+   same one-time bootstrap as the GitHub Action; see the console's `DEVSECOPS.md`).
+3. In the step choose **CXRay API** mode and set the **Image ID**, credentials, and (optionally) the
+   gate subset / `maxCvss` / `failOnKev`.
+
+```groovy
+step([$class: 'CXRayGateStep', mode: 'api',
+      imageId: env.CXRAY_IMAGE_ID, credentialsId: 'cxray-access-key',
+      gates: 'cve,license,secrets,ai', maxCvss: 9.0, failOnKev: true, failOn: 'fail'])
+```
+
+The API gates are thin clients — they call `GET /image/cve/gate/{id}` · `/license/policy/{id}` ·
+`/image/secrets/{id}` · `/ai/scan/{id}` and never re-implement policy. An auth/transport error is an
+ERROR (not a security FAILURE).
 
 ## What the local analyzers check
 
