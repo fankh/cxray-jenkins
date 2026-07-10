@@ -131,7 +131,7 @@ Quick smoke test (local mode, no server): point `modelFilePath` at `examples/Mod
 | Symptom | Cause / fix |
 |---|---|
 | `auth failed … redirected to login` | The Jenkins source IP isn't registered with CXRay, or the key is for a different IP. Re-mint for the correct egress IP (§3). |
-| `No API URL` | Set it in *Manage Jenkins → System → CXRay*, or per-job `apiUrl`. |
+| `No API URL` | An admin must set it in *Manage Jenkins → System → CXRay* (it is intentionally not settable per job). |
 | `Credentials not found` | The `credentialsId` doesn't match a Username/password credential visible to the job. |
 | `Scan timed out` | Raise `pollTimeoutSec`, or check the image ref / registry credentials. |
 | Build ERROR (not FAILURE) | A **misconfiguration** (missing inputs, unreachable API) — distinct from a security **FAILURE**. Fix the config. |
@@ -153,4 +153,7 @@ Quick smoke test (local mode, no server): point `modelFilePath` at `examples/Mod
 | `gates` | api | csv of `cve,license,secrets,ai` |
 | `maxCvss` / `failOnKev` | api | CVE gate thresholds (default 9.0 / true) |
 | `pollTimeoutSec` / `pollIntervalSec` | api | scan poll (default 600 / 10) |
-| `apiUrl` | api | override the global CXRay API URL |
+
+> The CXRay **API URL is admin-only** (Manage Jenkins → System). It is deliberately not a per-job
+> parameter: a per-job override would let anyone who can configure a job redirect the access-key
+> bearer to an arbitrary host and steal the credential (SSRF exfiltration).

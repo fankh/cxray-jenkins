@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.AncestorInPath;
@@ -60,7 +61,6 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
     private String gates = "cve,license,secrets,ai";
     private double maxCvss = 9.0;
     private boolean failOnKev = true;
-    private String apiUrl; // overrides the global config
 
     // --- api mode: scan-and-gate (P3) — set instead of imageId to scan a registry image first ---
     private String repo;
@@ -97,9 +97,6 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
     @DataBoundSetter public void setMaxCvss(double v) { this.maxCvss = v; }
     public boolean isFailOnKev() { return failOnKev; }
     @DataBoundSetter public void setFailOnKev(boolean v) { this.failOnKev = v; }
-    public String getApiUrl() { return apiUrl; }
-    @DataBoundSetter public void setApiUrl(String v) { this.apiUrl = fix(v); }
-
     public String getRepo() { return repo; }
     @DataBoundSetter public void setRepo(String v) { this.repo = fix(v); }
     public String getImage() { return image; }
@@ -161,15 +158,17 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
 
     // ── Method A: CXRay API (scan-and-gate, or gate an already-scanned image) ──
     private GateResult performApi(Run<?, ?> run, PrintStream log) throws AbortException, InterruptedException {
-        String base = apiUrl != null ? apiUrl : (CXRayGlobalConfiguration.get() != null ? CXRayGlobalConfiguration.get().getApiUrl() : null);
-        if (base == null || base.isEmpty()) throw new AbortException("[CXRay] No API URL — set it in Manage Jenkins → System, or per-job.");
+        // API URL is admin-controlled (global config only) — a per-job override would let a job
+        // configurer redirect the access-key bearer to an attacker host (SSRF credential exfil).
+        CXRayGlobalConfiguration cfg = CXRayGlobalConfiguration.get();
+        String base = cfg != null ? cfg.getApiUrl() : null;
+        if (base == null || base.isEmpty()) throw new AbortException("[CXRay] No API URL — an admin must set it in Manage Jenkins → System.");
         if (credentialsId == null) throw new AbortException("[CXRay] API mode needs CXRay access-key credentials.");
         StandardUsernamePasswordCredentials c = CredentialsProvider.findCredentialById(
                 credentialsId, StandardUsernamePasswordCredentials.class, run, Collections.emptyList());
         if (c == null) throw new AbortException("[CXRay] Credentials not found: " + credentialsId);
 
-        int timeout = CXRayGlobalConfiguration.get() != null ? CXRayGlobalConfiguration.get().getTimeoutSec() : 30;
-        CxrayClient client = new CxrayClient(base, c.getUsername(), c.getPassword().getPlainText(), timeout);
+        CxrayClient client = new CxrayClient(base, c.getUsername(), c.getPassword().getPlainText(), cfg.getTimeoutSec());
 
         List<String> want = new ArrayList<>();
         for (String g : gates.split(",")) { g = g.trim().toLowerCase(); if (!g.isEmpty()) want.add(g); }
@@ -230,6 +229,12 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
 
     private static String read(FilePath ws, String path, PrintStream log) throws InterruptedException, IOException {
         if (path == null) return null;
+        // Keep reads inside the workspace: reject absolute paths and any ".." traversal.
+        String norm = path.replace('\\', '/');
+        if (norm.startsWith("/") || norm.matches("^[A-Za-z]:.*")
+                || norm.equals("..") || norm.startsWith("../") || norm.endsWith("/..") || norm.contains("/../")) {
+            throw new AbortException("[CXRay] Invalid path (must be a relative path inside the workspace): " + path);
+        }
         FilePath fp = ws.child(path);
         if (!fp.exists()) { log.println("[CXRay] WARNING: file not found in workspace: " + path); return null; }
         log.println("[CXRay] Reading " + path);
@@ -258,14 +263,29 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
         }
 
         public ListBoxModel doFillCredentialsIdItems(@AncestorInPath Item item, @QueryParameter String credentialsId) {
+            return credentialItems(item, credentialsId);
+        }
+
+        public ListBoxModel doFillRegistryCredentialsIdItems(@AncestorInPath Item item, @QueryParameter String registryCredentialsId) {
+            return credentialItems(item, registryCredentialsId);
+        }
+
+        // Gate credential enumeration on permission so unprivileged users can't list credential IDs
+        // via the form-fill endpoint (Jenkins SECURITY-hardening convention).
+        private ListBoxModel credentialItems(Item item, String current) {
             StandardListBoxModel result = new StandardListBoxModel();
-            if (item != null && !item.hasPermission(Item.CONFIGURE)) {
-                return result.includeCurrentValue(credentialsId);
+            if (item == null) {
+                if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+                    return result.includeCurrentValue(current);
+                }
+            } else if (!item.hasPermission(Item.EXTENDED_READ)
+                    && !item.hasPermission(CredentialsProvider.USE_ITEM)) {
+                return result.includeCurrentValue(current);
             }
             return result.includeEmptyValue()
                     .includeMatchingAs(ACL.SYSTEM, item, StandardUsernamePasswordCredentials.class,
                             Collections.emptyList(), CredentialsMatchers.always())
-                    .includeCurrentValue(credentialsId);
+                    .includeCurrentValue(current);
         }
 
         public FormValidation doCheckImageId(@QueryParameter String value, @QueryParameter String mode) {

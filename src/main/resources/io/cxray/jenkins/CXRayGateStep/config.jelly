@@ -64,10 +64,6 @@
              description="CVE gate fails on any CISA-KEV (actively exploited) CVE.">
       <f:checkbox default="true"/>
     </f:entry>
-    <f:entry title="API URL override" field="apiUrl"
-             description="Optional — overrides the global CXRay API URL for this job.">
-      <f:textbox/>
-    </f:entry>
   </f:radioBlock>
 
   <f:entry title="Fail on" field="failOn"
