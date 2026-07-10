@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import javax.annotation.Nonnull;
 import jenkins.tasks.SimpleBuildStep;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.AncestorInPath;
@@ -119,8 +118,8 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
     }
 
     @Override
-    public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath workspace, @Nonnull EnvVars env,
-                        @Nonnull Launcher launcher, @Nonnull TaskListener listener)
+    public void perform(Run<?, ?> run, FilePath workspace, EnvVars env,
+                        Launcher launcher, TaskListener listener)
             throws InterruptedException, IOException {
         PrintStream log = listener.getLogger();
         GateResult result = "api".equals(mode) ? performApi(run, log) : performLocal(workspace, log);
@@ -246,7 +245,6 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
             return true;
         }
 
-        @Nonnull
         @Override
         public String getDisplayName() {
             return "CXRay Security Gate";

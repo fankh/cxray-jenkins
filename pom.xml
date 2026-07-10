@@ -22,9 +22,32 @@
   <description>Fail a Jenkins build when agent/AI-security posture (local) or a CXRay container scan (API) violates policy.</description>
   <url>https://github.com/fankh/cxray-jenkins</url>
 
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <id>cxray</id>
+      <name>CXRay</name>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:https://github.com/fankh/cxray-jenkins.git</connection>
+    <developerConnection>scm:git:git@github.com:fankh/cxray-jenkins.git</developerConnection>
+    <url>https://github.com/fankh/cxray-jenkins</url>
+    <tag>HEAD</tag>
+  </scm>
+
   <properties>
-    <!-- LTS baseline; the parent derives the Java level (2.528.x builds with JDK 21). -->
-    <jenkins.version>2.528</jenkins.version>
+    <!-- LTS patch (BOM plugins require .3); the parent derives the Java level (JDK 21). -->
+    <jenkins.version>2.528.3</jenkins.version>
+    <gitHubRepo>fankh/cxray-jenkins</gitHubRepo>
   </properties>
 
   <repositories>
@@ -62,8 +85,9 @@
       <artifactId>credentials</artifactId>
     </dependency>
     <dependency>
-      <groupId>io.jenkins.plugins</groupId>
+      <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>jackson2-api</artifactId>
+      <version>2.22.0-439.vb_b_43658d6176</version>
     </dependency>
     <!-- @Symbol("cxrayGate") for the pipeline step name + Snippet Generator -->
     <dependency>
