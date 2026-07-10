@@ -2,6 +2,37 @@
 
 All notable changes to the CXRay Security Gate Jenkins plugin.
 
+## [1.1.0] — 2026-07-10
+
+Compliance, governance, and evidence features on top of 1.0.0.
+
+### Added
+- **Compliance mapping** — every finding maps to the frameworks it evidences (OWASP LLM Top 10,
+  OWASP Agentic ASI, MITRE ATLAS, NIST SSDF, CISA-KEV/CWE) plus a concrete remediation; both show in
+  the report.
+- **Policy-as-code** — `.cxray/policy.json` (repo-committed): `failOn`/`gates`/`maxCvss`/`failOnKev`/
+  `dryRun` override job config, and **waivers** (check+id, unexpired, audit reason) suppress findings.
+- **Policy inheritance** — an admin **org default policy** (global config) is merged *under* each
+  repo's policy: repo wins, org fills the gaps, waivers are the union.
+- **VEX** — `.cxray/vex.json` (OpenVEX) drops CVE findings marked `not_affected`/`fixed`.
+- **Attestation** — opt-in `attestationPath` writes an in-toto/SLSA Statement (verdict + inputs +
+  SHA-256 policy digest) for cosign/in-toto to sign downstream.
+- **SARIF 2.1.0** — opt-in `sarifPath` writes findings (with framework + remediation properties) for
+  GitHub code scanning / Azure DevOps.
+- **Exploitability ordering** — findings are ordered CISA-KEV → severity → CVSS everywhere.
+- **Dry-run** — `dryRun` simulates: report/attestation/SARIF are written and "would block" is logged,
+  but the build never fails (rollout lever).
+- **Suppression suggestions** — the report shows copy-paste `.cxray/vex.json` + `.cxray/policy.json`
+  waivers for the current findings (false-positive loop).
+- **MCP gate in API mode** — `gates=…,mcp` gates a manifest via the authoritative `POST /mcp/gate`.
+- **Notifications** — a global webhook (Slack/Teams/generic) is posted when the gate blocks a build.
+- **Why-blocked** — the build description shows the verdict + severity tally.
+
+### Tested
+- 76 tests (from 38): compliance/VEX/policy/attestation/SARIF/prioritizer/suggestions units, the API
+  contract test (locked to the real `cxray-main` gate shapes), the live HTTP wire path, and the
+  JenkinsRule build/fail/dry-run/report flow. SpotBugs clean.
+
 ## [1.0.0] — 2026-07-10
 
 Initial release.

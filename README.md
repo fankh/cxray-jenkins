@@ -10,12 +10,12 @@ violate security policy. Two methods:
 | Agent/AI-security (poisoning · toxic-capability · transport · identity · model-runtime) | ✅ | ✅ (self-contained analyzers) |
 | Inputs | image ref → scanned in CXRay | workspace files (mcp.json / server.json / Modelfile / tools manifest) |
 
-**This build ships Method B (local/offline).** Method A (scan-and-gate via the CXRay API) is on the
-roadmap below. The plugin is a thin client — all policy comes from CXRay; it never re-implements it.
+**Both methods ship.** The plugin is a thin client — all policy comes from CXRay; it never
+re-implements it.
 
 ## Status
 
-- **P0 Scaffold** ✅ — Maven `hpi`, Jenkins 2.462.x LTS + Java 17.
+- **P0 Scaffold** ✅ — Maven `hpi`, Jenkins 2.528.3 LTS + Java 21.
 - **P1 Local gate** ✅ — offline analyzers (transport · identity · model-runtime · poisoning) + a
   Freestyle/Pipeline build step that fails the build on policy violation.
 - **P2 API gate** ✅ — gate an already-scanned image via the CXRay API (CVE/KEV · license · secrets ·
@@ -28,8 +28,17 @@ roadmap below. The plugin is a thin client — all policy comes from CXRay; it n
 - **P5 Polish** ✅ — `cxrayGate(...)` pipeline symbol + Snippet Generator, the per-tool
   toxic-capability matrix (local), and `JenkinsRule` end-to-end tests.
 
-The five build phases are complete. Remaining follow-ups: WireMock tests for API mode, and
-publishing to the Jenkins Update Center.
+The five build phases are complete; API mode has full in-JVM HTTP-wire test coverage.
+
+### 1.1.0 — compliance, governance & evidence ✅
+- **Compliance mapping** (OWASP LLM/ASI · MITRE ATLAS · NIST SSDF) + remediation on every finding.
+- **Policy-as-code** (`.cxray/policy.json`) with waivers, plus admin **org-default policy inheritance**.
+- **VEX** (`.cxray/vex.json`) suppression of non-exploitable CVEs.
+- **in-toto/SLSA attestation** (`attestationPath`) and **SARIF 2.1.0** export (`sarifPath`).
+- **Exploitability ordering** (KEV → severity → CVSS), **dry-run** simulation, copy-paste **suppression suggestions**.
+- **MCP gate** in API mode; **Slack/Teams webhook** notifications.
+
+Remaining follow-up: publishing to the Jenkins Update Center. See [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Build & run
 
