@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "docs": {
+      "command": "npx",
+      "args": ["-y", "@acme/docs-mcp-server"],
+      "env": {
+        "API_KEY": "sk-live-9f3ab2c7d1e0a4b5"
+      }
+    }
+  }
+}

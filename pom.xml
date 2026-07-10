@@ -7,9 +7,9 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <!-- Coordinated triple: this parent + the jenkins.version below. Bump both together to the
-         current LTS from https://www.jenkins.io/doc/developer/plugin-development/updating-parent/ -->
-    <version>4.88</version>
+    <!-- Coordinated triple: this parent + jenkins.version + the BOM below (all real, current
+         releases as of 2026-07). Bump together per https://www.jenkins.io/doc/developer/ -->
+    <version>6.2208.vb_6798604237e</version>
     <relativePath/>
   </parent>
 
@@ -23,8 +23,8 @@
   <url>https://github.com/fankh/cxray-jenkins</url>
 
   <properties>
-    <!-- Java level is derived from jenkins.version by the parent (2.462.x => Java 17). -->
-    <jenkins.version>2.462.3</jenkins.version>
+    <!-- LTS baseline; the parent derives the Java level (2.528.x builds with JDK 21). -->
+    <jenkins.version>2.528</jenkins.version>
   </properties>
 
   <repositories>
@@ -42,12 +42,12 @@
 
   <dependencyManagement>
     <dependencies>
-      <!-- The Jenkins plugin BOM aligns plugin dependency versions to jenkins.version.
-           VERIFY/BUMP to the current bom-2.462.x release: https://github.com/jenkinsci/bom/releases -->
+      <!-- The Jenkins plugin BOM aligns plugin dependency versions to the 2.528.x LTS line.
+           Current release: https://github.com/jenkinsci/bom/releases -->
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
-        <artifactId>bom-2.462.x</artifactId>
-        <version>3413.v0d896b_76a_30d</version>
+        <artifactId>bom-2.528.x</artifactId>
+        <version>6607.v3ed3d8ddfed8</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>

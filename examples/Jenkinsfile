@@ -1,0 +1,34 @@
+// Example pipeline using the CXRay Security Gate plugin.
+pipeline {
+    agent any
+    stages {
+
+        // Method B — local/offline: fails the build on a risky MCP config / tool manifest / Modelfile
+        // in the workspace. No CXRay server or credentials needed.
+        stage('CXRay — local gate') {
+            steps {
+                cxrayGate mode: 'local',
+                          configPath: 'examples/mcp-server.json',
+                          manifestPath: 'examples/tools.json',
+                          modelFilePath: 'examples/Modelfile',
+                          failOn: 'fail'
+            }
+        }
+
+        // Method A — CXRay API scan-and-gate: pull + scan the image you just built, then gate.
+        // Requires the global CXRay API URL + a 'cxray-access-key' username/password credential
+        // (username = access key, password = secret key). Runs only when configured.
+        stage('CXRay — API scan-and-gate') {
+            when { expression { return env.CXRAY_ENABLED == 'true' } }
+            steps {
+                cxrayGate mode: 'api',
+                          repo: 'registry.acme.io', image: 'my-service', tag: env.GIT_COMMIT,
+                          credentialsId: 'cxray-access-key',
+                          registryCredentialsId: 'acme-registry',
+                          gates: 'cve,license,secrets,ai',
+                          maxCvss: 9.0, failOnKev: true,
+                          pollTimeoutSec: 900, failOn: 'fail'
+            }
+        }
+    }
+}

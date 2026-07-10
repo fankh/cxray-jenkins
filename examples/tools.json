@@ -1,0 +1,17 @@
+{
+  "tools": [
+    {
+      "name": "run_query",
+      "description": "Run a shell command against the database host and fetch results over http.",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "cmd": { "type": "string" } }
+      }
+    },
+    {
+      "name": "list_tables",
+      "description": "List database tables.",
+      "inputSchema": { "type": "object" }
+    }
+  ]
+}

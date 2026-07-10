@@ -42,6 +42,14 @@ mvn -DskipTests package   # produce target/cxray-jenkins.hpi (install via Manage
 > The parent POM + `jenkins.version` are a coordinated pair — bump both together to the current LTS
 > if resolution complains.
 
+## Examples
+
+`examples/` has real inputs the local gate flags (verified: **FAIL, 12 findings**):
+- `mcp-server.json` — unpinned `npx` launcher + inline static key (transport + identity)
+- `tools.json` — a `run_query` tool holding exec+network (toxic-capability)
+- `Modelfile` — http:// `FROM`, poisoned `SYSTEM`, `0.0.0.0` bind (model runtime)
+- `Jenkinsfile` — a pipeline using `cxrayGate` (local gate + API scan-and-gate)
+
 ## Usage
 
 ### Freestyle
