@@ -1,0 +1,6 @@
+<?jelly escape-by-default='true'?>
+<div>
+  CXRay Security Gate — fail a build when agent/AI-security posture (local/offline) or a CXRay
+  container scan (API) violates policy. The local gate analyzes MCP configs, tool manifests, and
+  Ollama Modelfiles in the workspace with no server and no credentials.
+</div>

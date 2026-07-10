@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.jenkins-ci.plugins</groupId>
+    <artifactId>plugin</artifactId>
+    <!-- Coordinated triple: this parent + the jenkins.version below. Bump both together to the
+         current LTS from https://www.jenkins.io/doc/developer/plugin-development/updating-parent/ -->
+    <version>4.88</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>io.cxray</groupId>
+  <artifactId>cxray-jenkins</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>hpi</packaging>
+
+  <name>CXRay Security Gate</name>
+  <description>Fail a Jenkins build when agent/AI-security posture (local) or a CXRay container scan (API) violates policy.</description>
+  <url>https://github.com/fankh/cxray-jenkins</url>
+
+  <properties>
+    <!-- P1 (local/offline gate) uses only Jenkins core APIs — no extra plugin deps.
+         Java level is derived from jenkins.version by the parent (2.462.x => Java 17). -->
+    <jenkins.version>2.462.3</jenkins.version>
+  </properties>
+
+  <repositories>
+    <repository>
+      <id>repo.jenkins-ci.org</id>
+      <url>https://repo.jenkins-ci.org/public/</url>
+    </repository>
+  </repositories>
+  <pluginRepositories>
+    <pluginRepository>
+      <id>repo.jenkins-ci.org</id>
+      <url>https://repo.jenkins-ci.org/public/</url>
+    </pluginRepository>
+  </pluginRepositories>
+
+  <!-- No <dependencies> for P1: SimpleBuildStep / Builder / BuildStepDescriptor / FilePath are all
+       in Jenkins core. Method A (API) adds credentials + jackson2-api + workflow-step-api via the
+       Jenkins BOM in P2/P5 (a <dependencyManagement> import of io.jenkins.tools.bom). -->
+</project>

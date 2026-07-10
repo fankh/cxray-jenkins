@@ -1,0 +1,19 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+  <f:entry title="MCP server config" field="configPath"
+           description="Path (in the workspace) to mcp.json / server.json — graded for transport &amp; identity posture. Optional.">
+    <f:textbox/>
+  </f:entry>
+  <f:entry title="Tool manifest" field="manifestPath"
+           description="Path to a tools/list manifest — scanned for tool-poisoning signals (injection / hidden-unicode / exfil). Optional.">
+    <f:textbox/>
+  </f:entry>
+  <f:entry title="Model file" field="modelFilePath"
+           description="Path to an Ollama Modelfile / model-server config — scanned for untrusted FROM, poisoned SYSTEM prompt, 0.0.0.0 bind, inline secrets. Optional.">
+    <f:textbox/>
+  </f:entry>
+  <f:entry title="Fail on" field="failOn"
+           description="Block the build on FAIL only (default), or also on REVIEW.">
+    <f:select/>
+  </f:entry>
+</j:jelly>
