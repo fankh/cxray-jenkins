@@ -134,7 +134,10 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
                         Launcher launcher, TaskListener listener)
             throws InterruptedException, IOException {
         PrintStream log = listener.getLogger();
-        Policy policy = Policy.load(workspace, log);
+        // Policy inheritance: admin org default (global config) → repo .cxray/policy.json (repo wins).
+        CXRayGlobalConfiguration cfg0 = CXRayGlobalConfiguration.get();
+        Policy orgDefault = cfg0 != null ? Policy.fromJson(cfg0.getDefaultPolicyJson(), log) : null;
+        Policy policy = Policy.layered(orgDefault, Policy.load(workspace, log));
         GateResult result = "api".equals(mode) ? performApi(run, workspace, log, policy) : performLocal(workspace, log);
         if (policy != null) {
             result = policy.applyWaivers(result, log, java.time.LocalDate.now());

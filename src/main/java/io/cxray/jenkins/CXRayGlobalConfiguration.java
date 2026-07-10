@@ -1,7 +1,9 @@
 package io.cxray.jenkins;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import hudson.Extension;
 import hudson.util.FormValidation;
+import java.io.IOException;
 import jenkins.model.GlobalConfiguration;
 import net.sf.json.JSONObject;
 import org.kohsuke.stapler.DataBoundSetter;
@@ -19,6 +21,7 @@ public class CXRayGlobalConfiguration extends GlobalConfiguration {
     private String apiUrl;      // console origin + /api, e.g. https://console.example/api
     private int timeoutSec = 30;
     private String notifyWebhookUrl; // Slack/Teams/generic incoming webhook, posted on gate FAIL
+    private String defaultPolicyJson; // org default policy (JSON) merged UNDER each repo's .cxray/policy.json
 
     public CXRayGlobalConfiguration() {
         load();
@@ -59,6 +62,17 @@ public class CXRayGlobalConfiguration extends GlobalConfiguration {
         save();
     }
 
+    public String getDefaultPolicyJson() {
+        return defaultPolicyJson;
+    }
+
+    @DataBoundSetter
+    public void setDefaultPolicyJson(String defaultPolicyJson) {
+        this.defaultPolicyJson = (defaultPolicyJson == null || defaultPolicyJson.trim().isEmpty())
+                ? null : defaultPolicyJson.trim();
+        save();
+    }
+
     @Override
     public boolean configure(StaplerRequest req, JSONObject json) {
         req.bindJSON(this, json);
@@ -80,5 +94,15 @@ public class CXRayGlobalConfiguration extends GlobalConfiguration {
         if (value == null || value.trim().isEmpty()) return FormValidation.ok();
         if (!value.trim().matches("^https?://.+")) return FormValidation.error("Must be an http(s) webhook URL.");
         return FormValidation.ok();
+    }
+
+    public FormValidation doCheckDefaultPolicyJson(@QueryParameter String value) {
+        if (value == null || value.trim().isEmpty()) return FormValidation.ok();
+        try {
+            new ObjectMapper().readTree(value);
+            return FormValidation.ok();
+        } catch (IOException e) {
+            return FormValidation.error("Not valid JSON: " + e.getMessage());
+        }
     }
 }

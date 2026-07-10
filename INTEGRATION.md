@@ -133,6 +133,10 @@ and the `cxray-gate` GitHub Action. Example in [`examples/policy.json`](examples
 }
 ```
 
+- **Inheritance:** an admin can set an **org default policy** (Manage Jenkins → System → *Org default
+  policy*, same JSON shape). It's merged **under** the repo's `.cxray/policy.json` — a repo value wins,
+  the org default fills the gaps, and waivers are the union. So org-wide baselines live in one place
+  while repos tighten as needed.
 - **Overrides:** `failOn`, `gates`, `maxCvss`, `failOnKev`, `dryRun` replace the job config when set.
 - **Waivers:** an unexpired waiver whose `check` (and optional `id`, matched against a finding's title
   or detail) matches a finding **suppresses** it; the verdict is recomputed from what remains. Expired

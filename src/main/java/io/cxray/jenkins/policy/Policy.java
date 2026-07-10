@@ -63,29 +63,7 @@ public final class Policy {
         FilePath fp = workspace.child(PATH);
         if (!fp.exists()) return null;
         try {
-            JsonNode n = new ObjectMapper().readTree(fp.readToString());
-            Policy p = new Policy();
-            if (n.hasNonNull("failOn")) p.failOn = n.get("failOn").asText();
-            if (n.has("gates") && n.get("gates").isArray()) {
-                p.gates = new ArrayList<>();
-                for (JsonNode g : n.get("gates")) {
-                    String v = g.asText().trim().toLowerCase();
-                    if (!v.isEmpty()) p.gates.add(v);
-                }
-            }
-            if (n.hasNonNull("maxCvss")) p.maxCvss = n.get("maxCvss").asDouble();
-            if (n.hasNonNull("failOnKev")) p.failOnKev = n.get("failOnKev").asBoolean();
-            if (n.hasNonNull("dryRun")) p.dryRun = n.get("dryRun").asBoolean();
-            if (n.has("waivers") && n.get("waivers").isArray()) {
-                for (JsonNode w : n.get("waivers")) {
-                    Waiver wv = new Waiver();
-                    wv.check = txt(w, "check");
-                    wv.id = txt(w, "id");
-                    wv.reason = txt(w, "reason");
-                    wv.expires = txt(w, "expires");
-                    p.waivers.add(wv);
-                }
-            }
+            Policy p = populate(new ObjectMapper().readTree(fp.readToString()));
             log.println("[CXRay] Loaded policy from " + PATH
                     + (p.waivers.isEmpty() ? "" : " (" + p.waivers.size() + " waiver(s))"));
             return p;
@@ -93,6 +71,64 @@ public final class Policy {
             log.println("[CXRay] WARNING: could not parse " + PATH + " — ignoring (" + e.getMessage() + ")");
             return null;
         }
+    }
+
+    /** Parse a policy from a JSON string — used for the admin-set org default (global config). */
+    public static Policy fromJson(String json, PrintStream log) {
+        if (json == null || json.trim().isEmpty()) return null;
+        try {
+            Policy p = populate(new ObjectMapper().readTree(json));
+            log.println("[CXRay] Applied org default policy from global config"
+                    + (p.waivers.isEmpty() ? "" : " (" + p.waivers.size() + " waiver(s))"));
+            return p;
+        } catch (IOException e) {
+            log.println("[CXRay] WARNING: could not parse the org default policy — ignoring (" + e.getMessage() + ")");
+            return null;
+        }
+    }
+
+    /**
+     * Layer {@code override} on top of {@code base} (policy inheritance: org default → repo). A scalar
+     * set in {@code override} wins; otherwise {@code base} fills it. Waivers are the union of both.
+     */
+    public static Policy layered(Policy base, Policy override) {
+        if (base == null) return override;
+        if (override == null) return base;
+        Policy p = new Policy();
+        p.failOn = override.failOn != null ? override.failOn : base.failOn;
+        p.gates = override.gates != null ? override.gates : base.gates;
+        p.maxCvss = override.maxCvss != null ? override.maxCvss : base.maxCvss;
+        p.failOnKev = override.failOnKev != null ? override.failOnKev : base.failOnKev;
+        p.dryRun = override.dryRun != null ? override.dryRun : base.dryRun;
+        p.waivers.addAll(base.waivers);
+        p.waivers.addAll(override.waivers);
+        return p;
+    }
+
+    private static Policy populate(JsonNode n) {
+        Policy p = new Policy();
+        if (n.hasNonNull("failOn")) p.failOn = n.get("failOn").asText();
+        if (n.has("gates") && n.get("gates").isArray()) {
+            p.gates = new ArrayList<>();
+            for (JsonNode g : n.get("gates")) {
+                String v = g.asText().trim().toLowerCase();
+                if (!v.isEmpty()) p.gates.add(v);
+            }
+        }
+        if (n.hasNonNull("maxCvss")) p.maxCvss = n.get("maxCvss").asDouble();
+        if (n.hasNonNull("failOnKev")) p.failOnKev = n.get("failOnKev").asBoolean();
+        if (n.hasNonNull("dryRun")) p.dryRun = n.get("dryRun").asBoolean();
+        if (n.has("waivers") && n.get("waivers").isArray()) {
+            for (JsonNode w : n.get("waivers")) {
+                Waiver wv = new Waiver();
+                wv.check = txt(w, "check");
+                wv.id = txt(w, "id");
+                wv.reason = txt(w, "reason");
+                wv.expires = txt(w, "expires");
+                p.waivers.add(wv);
+            }
+        }
+        return p;
     }
 
     /**

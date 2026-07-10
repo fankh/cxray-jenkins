@@ -71,6 +71,26 @@ public class PolicyTest {
     }
 
     @Test
+    public void layeredRepoWinsOrgFillsAndWaiversUnion() throws Exception {
+        Policy org = Policy.fromJson("{\"failOn\":\"fail\",\"maxCvss\":9.0,\"failOnKev\":true,"
+                + "\"waivers\":[{\"check\":\"cve\",\"id\":\"CVE-ORG\"}]}", log);
+        Policy repo = Policy.fromJson("{\"maxCvss\":7.0,\"waivers\":[{\"check\":\"cve\",\"id\":\"CVE-REPO\"}]}", log);
+        Policy eff = Policy.layered(org, repo);
+        assertEquals("fail", eff.getFailOn());              // from org (repo didn't set it)
+        assertEquals(Double.valueOf(7.0), eff.getMaxCvss()); // repo wins
+        assertEquals(Boolean.TRUE, eff.getFailOnKev());      // from org
+        assertEquals(2, eff.getWaivers().size());            // union of org + repo waivers
+    }
+
+    @Test
+    public void layeredHandlesNullSides() throws Exception {
+        Policy repo = Policy.fromJson("{\"failOn\":\"review\"}", log);
+        assertEquals("review", Policy.layered(null, repo).getFailOn()); // no org default
+        assertEquals("review", Policy.layered(repo, null).getFailOn()); // no repo file
+        assertNull(Policy.layered(null, null));
+    }
+
+    @Test
     public void waiverLeavesUnmatchedFindingsAndRecomputes() throws Exception {
         Policy p = Policy.load(workspaceWith(
                 "{\"waivers\":[{\"check\":\"cve\",\"id\":\"CVE-2024-0001\"}]}"), log);

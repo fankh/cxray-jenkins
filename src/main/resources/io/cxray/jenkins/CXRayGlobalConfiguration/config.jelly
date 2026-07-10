@@ -13,5 +13,9 @@
              description="Optional — Slack/Teams/generic incoming webhook. A compact message is posted when the gate blocks a build. Best-effort; never fails the build.">
       <f:textbox/>
     </f:entry>
+    <f:entry title="Org default policy (JSON)" field="defaultPolicyJson"
+             description="Optional — an org-wide default policy (same shape as .cxray/policy.json). Merged UNDER each repo's policy file: a repo value wins, this fills the gaps; waivers are the union.">
+      <f:textarea/>
+    </f:entry>
   </f:section>
 </j:jelly>
