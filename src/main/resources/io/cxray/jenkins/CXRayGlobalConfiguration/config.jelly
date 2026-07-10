@@ -9,5 +9,9 @@
              description="Per-request timeout for CXRay API calls.">
       <f:number default="30" clazz="positive-number"/>
     </f:entry>
+    <f:entry title="Notify webhook URL" field="notifyWebhookUrl"
+             description="Optional — Slack/Teams/generic incoming webhook. A compact message is posted when the gate blocks a build. Best-effort; never fails the build.">
+      <f:textbox/>
+    </f:entry>
   </f:section>
 </j:jelly>

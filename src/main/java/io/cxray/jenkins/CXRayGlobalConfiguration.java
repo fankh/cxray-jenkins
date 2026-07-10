@@ -18,6 +18,7 @@ public class CXRayGlobalConfiguration extends GlobalConfiguration {
 
     private String apiUrl;      // console origin + /api, e.g. https://console.example/api
     private int timeoutSec = 30;
+    private String notifyWebhookUrl; // Slack/Teams/generic incoming webhook, posted on gate FAIL
 
     public CXRayGlobalConfiguration() {
         load();
@@ -47,6 +48,17 @@ public class CXRayGlobalConfiguration extends GlobalConfiguration {
         save();
     }
 
+    public String getNotifyWebhookUrl() {
+        return notifyWebhookUrl;
+    }
+
+    @DataBoundSetter
+    public void setNotifyWebhookUrl(String notifyWebhookUrl) {
+        this.notifyWebhookUrl = (notifyWebhookUrl == null || notifyWebhookUrl.trim().isEmpty())
+                ? null : notifyWebhookUrl.trim();
+        save();
+    }
+
     @Override
     public boolean configure(StaplerRequest req, JSONObject json) {
         req.bindJSON(this, json);
@@ -61,6 +73,12 @@ public class CXRayGlobalConfiguration extends GlobalConfiguration {
         if (v.regionMatches(true, 0, "http://", 0, 7)) {
             return FormValidation.warning("Use https:// — the access-key bearer is sent on every request and would travel in cleartext over http.");
         }
+        return FormValidation.ok();
+    }
+
+    public FormValidation doCheckNotifyWebhookUrl(@QueryParameter String value) {
+        if (value == null || value.trim().isEmpty()) return FormValidation.ok();
+        if (!value.trim().matches("^https?://.+")) return FormValidation.error("Must be an http(s) webhook URL.");
         return FormValidation.ok();
     }
 }

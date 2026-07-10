@@ -148,6 +148,13 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
         boolean block = "fail".equals(result.verdict)
                 || ("review".equals(result.verdict) && "review".equals(effFailOn));
         if (block) {
+            CXRayGlobalConfiguration gc = CXRayGlobalConfiguration.get();
+            if (gc != null && gc.getNotifyWebhookUrl() != null) {
+                String root = Jenkins.get().getRootUrl();
+                String buildUrl = root != null ? root + run.getUrl() : null;
+                Notifier.gateFailed(gc.getNotifyWebhookUrl(), result.verdict, mode, target,
+                        result.findings.size(), buildUrl, gc.getTimeoutSec(), log);
+            }
             throw new AbortException("[CXRay] Gate " + result.verdict.toUpperCase()
                     + " — failing the build (fail-on=" + effFailOn + ").");
         }
