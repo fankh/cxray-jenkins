@@ -22,6 +22,7 @@ import io.cxray.jenkins.api.CxrayClient;
 import io.cxray.jenkins.local.Finding;
 import io.cxray.jenkins.local.GateResult;
 import io.cxray.jenkins.local.LocalAnalyzers;
+import io.cxray.jenkins.local.Prioritizer;
 import io.cxray.jenkins.policy.Policy;
 import io.cxray.jenkins.policy.Vex;
 import java.io.IOException;
@@ -52,6 +53,7 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
     private String mode = "local";
     private String failOn = "fail";
     private String attestationPath; // when set, write an in-toto gate attestation here (both modes)
+    private String sarifPath;       // when set, write a SARIF 2.1.0 report here (both modes)
 
     // --- local mode ---
     private String configPath;
@@ -85,6 +87,9 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
 
     public String getAttestationPath() { return attestationPath; }
     @DataBoundSetter public void setAttestationPath(String v) { this.attestationPath = fix(v); }
+
+    public String getSarifPath() { return sarifPath; }
+    @DataBoundSetter public void setSarifPath(String v) { this.sarifPath = fix(v); }
 
     public String getConfigPath() { return configPath; }
     @DataBoundSetter public void setConfigPath(String v) { this.configPath = fix(v); }
@@ -134,6 +139,8 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
         if (vex != null) {
             result = vex.apply(result, log);
         }
+        // Order most-exploitable first (KEV/severity/CVSS) — the full set is kept, verdict unchanged.
+        result = new GateResult(result.verdict, Prioritizer.byExploitability(result.findings));
         long now = System.currentTimeMillis();
 
         String target = "api".equals(mode)
@@ -158,6 +165,9 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
         if (attestationPath != null) {
             Attestation.emit(workspace, attestationPath, result, mode, target,
                     run.getParent().getFullName(), run.getNumber(), buildUrl, now, log);
+        }
+        if (sarifPath != null) {
+            Sarif.emit(workspace, sarifPath, result, mode, target, null, log);
         }
 
         String effFailOn = (policy != null && policy.getFailOn() != null) ? policy.getFailOn()

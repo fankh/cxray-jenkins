@@ -147,6 +147,11 @@ to emit an [in-toto](https://in-toto.io) / SLSA-style Statement recording the ve
 SHA-256 digest of the policy file. It's written **unsigned** — sign it with `cosign`/`in-toto` in a later
 pipeline step (`archiveArtifacts` it for audit).
 
+**SARIF (`sarifPath`)** — set *SARIF path* (e.g. `cxray.sarif`) to emit a SARIF 2.1.0 report; each result
+carries the framework mapping + remediation in `properties`. Upload it to GitHub code scanning
+(`github/codeql-action/upload-sarif`) or archive it. Findings are ordered most-exploitable-first
+(CISA-KEV, then severity, then CVSS) everywhere they appear.
+
 ## 7. Verify
 
 Run the job. In the build:
@@ -176,6 +181,7 @@ Quick smoke test (local mode, no server): point `modelFilePath` at `examples/Mod
 | `mode` | both | `local` or `api` |
 | `failOn` | both | `fail` (default) or `review` |
 | `attestationPath` | both | optional workspace path to write an in-toto/SLSA gate attestation |
+| `sarifPath` | both | optional workspace path to write a SARIF 2.1.0 report (GitHub code scanning) |
 | `configPath` | local | mcp.json / server.json → transport + identity |
 | `manifestPath` | local | tools/list manifest → poisoning + toxic-capability |
 | `modelFilePath` | local | Ollama Modelfile / model-server config |

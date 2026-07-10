@@ -74,4 +74,8 @@
            description="Optional — workspace path to write an in-toto/SLSA gate attestation (verdict + inputs + policy digest). Sign it with cosign/in-toto in a later step. e.g. cxray-attestation.json">
     <f:textbox/>
   </f:entry>
+  <f:entry title="SARIF path" field="sarifPath"
+           description="Optional — workspace path to write a SARIF 2.1.0 report (upload to GitHub code scanning or archive). e.g. cxray.sarif">
+    <f:textbox/>
+  </f:entry>
 </j:jelly>
