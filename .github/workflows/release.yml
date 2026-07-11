@@ -1,0 +1,44 @@
+name: release
+
+# Tag a version to cut a verifiable release:  git tag v1.2.0 && git push origin v1.2.0
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write      # create the release + upload assets
+  id-token: write      # SLSA build provenance
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build & verify
+        run: mvn -B -ntp clean verify
+
+      - name: Checksum the .hpi
+        run: cd target && sha256sum *.hpi | tee SHA256SUMS
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018 # v1
+        with:
+          subject-path: target/*.hpi
+
+      # Use preinstalled gh (no third-party release action → smaller supply chain).
+      - name: Publish release with verifiable assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" target/*.hpi target/SHA256SUMS \
+            --title "CXRay Security Gate ${GITHUB_REF_NAME}" --generate-notes \
+          || gh release upload "${GITHUB_REF_NAME}" target/*.hpi target/SHA256SUMS --clobber
