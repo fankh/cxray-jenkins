@@ -91,6 +91,10 @@ public final class LocalAnalyzers {
     private static final Pattern REMOTE_URL = Pattern.compile("https?://", Pattern.CASE_INSENSITIVE);
     private static final Pattern REMOTE_EXT = Pattern.compile("\\.(gguf|bin|safetensors)\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern REMOTE_HOST = Pattern.compile("huggingface|hf\\.co|ollama\\.com/library", Pattern.CASE_INSENSITIVE);
+    // Serialization risk (OWASP-LLM03/04): pickle-family artifacts execute arbitrary code on load (RCE).
+    private static final Pattern M_UNSAFE_ARTIFACT = Pattern.compile("\\.(pkl|pickle|pt|pth|ckpt|joblib|h5|hdf5|npz|dill)\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern M_REVIEW_ARTIFACT = Pattern.compile("\\.(bin|pb|ggml)\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern M_UNSAFE_LOAD = Pattern.compile("torch\\.load\\s*\\(|pickle\\.loads?\\s*\\(|joblib\\.load\\s*\\(|cloudpickle|keras\\.models\\.load_model", Pattern.CASE_INSENSITIVE);
 
     private static boolean looksRemote(String ref) {
         return REMOTE_URL.matcher(ref).find() || ref.contains("/") || REMOTE_EXT.matcher(ref).find() || REMOTE_HOST.matcher(ref).find();
@@ -115,11 +119,15 @@ public final class LocalAnalyzers {
                 ref = ref.replaceAll("[\"',]+$", "");
                 if (HTTP_PREFIX.matcher(ref).find()) f.add(new Finding("model", "high", "insecure-source", "model pulled over plaintext http:// — weights can be swapped in transit", line));
                 if (looksRemote(ref) && !M_PINNED.matcher(ref).find()) f.add(new Finding("model", "medium", "unpinned-model", "model source has no digest/version pin — the fetched weights can change silently", line));
+                if (M_UNSAFE_ARTIFACT.matcher(ref).find()) f.add(new Finding("model", "critical", "unsafe-serialization", "model artifact uses an unsafe serialization format (pickle/torch/joblib/h5) — loading it executes arbitrary code (RCE); convert to safetensors/gguf/onnx", line));
+                else if (M_REVIEW_ARTIFACT.matcher(ref).find()) f.add(new Finding("model", "medium", "review-serialization", "model artifact format (.bin/.pb/.ggml) can carry an unsafe payload — prefer safetensors/gguf/onnx", line));
             }
             if (ADAPTER.matcher(raw).find()) {
                 String aref = raw.replaceAll("^\\s*ADAPTER\\s+", "").trim();
                 if (looksRemote(aref) && !M_PINNED.matcher(aref).find()) f.add(new Finding("model", "medium", "unsafe-adapter", "LoRA/adapter from an unpinned source — can alter model behavior", line));
+                if (M_UNSAFE_ARTIFACT.matcher(aref).find()) f.add(new Finding("model", "critical", "unsafe-serialization", "adapter/weights use an unsafe serialization format (pickle/torch/joblib) — RCE on load; convert to safetensors", line));
             }
+            if (M_UNSAFE_LOAD.matcher(raw).find()) f.add(new Finding("model", "critical", "unsafe-deserialization", "config invokes an unsafe model loader (torch.load/pickle/joblib/keras) — RCE on load; use safetensors or torch weights_only=True", line));
             if (SYSTEM_LINE.matcher(raw).find() && M_INJECTION.matcher(raw).find())
                 f.add(new Finding("model", "high", "system-prompt-injection", "baked-in system prompt contains injection / exfiltration instructions", line));
             if (M_EXPOSED.matcher(raw).find()) { exposed = true; f.add(new Finding("model", "high", "exposed-bind", "model server bound to all interfaces (0.0.0.0) — reachable off-host", line)); }
@@ -127,7 +135,7 @@ public final class LocalAnalyzers {
         }
         if (exposed && !sawAuth) f.add(new Finding("model", "high", "no-auth", "server exposed (0.0.0.0) with no API-key/auth — an open, abusable inference endpoint", 0));
         int worst = -1;
-        for (Finding fn : f) worst = Math.max(worst, "high".equals(fn.severity) ? 2 : "medium".equals(fn.severity) ? 1 : 0);
+        for (Finding fn : f) worst = Math.max(worst, "critical".equals(fn.severity) ? 3 : "high".equals(fn.severity) ? 2 : "medium".equals(fn.severity) ? 1 : 0);
         String verdict = worst >= 2 ? "fail" : worst >= 0 ? "review" : "pass";
         return new GateResult(verdict, f);
     }

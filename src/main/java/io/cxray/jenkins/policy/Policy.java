@@ -102,6 +102,7 @@ public final class Policy {
         p.maxCvss = override.maxCvss != null ? override.maxCvss : base.maxCvss;
         p.failOnKev = override.failOnKev != null ? override.failOnKev : base.failOnKev;
         p.dryRun = override.dryRun != null ? override.dryRun : base.dryRun;
+        p.mcpAllow = override.mcpAllow != null ? override.mcpAllow : base.mcpAllow;
         p.waivers.addAll(base.waivers);
         p.waivers.addAll(override.waivers);
         return p;

@@ -83,6 +83,21 @@ public class PolicyTest {
     }
 
     @Test
+    public void layeredInheritsMcpAllowFromOrgWhenRepoOmitsIt() throws Exception {
+        Policy org = Policy.fromJson("{\"mcpAllow\":[\"payments-mcp\",{\"id\":\"docs-mcp\",\"sha256\":\"abc123\"}]}", log);
+        Policy repo = Policy.fromJson("{\"failOn\":\"review\"}", log); // no mcpAllow
+        Policy eff = Policy.layered(org, repo);
+        assertEquals(Arrays.asList("payments-mcp", "docs-mcp=abc123"), eff.getMcpAllow()); // org allowlist survives
+    }
+
+    @Test
+    public void layeredRepoMcpAllowWinsOverOrg() throws Exception {
+        Policy org = Policy.fromJson("{\"mcpAllow\":[\"org-only\"]}", log);
+        Policy repo = Policy.fromJson("{\"mcpAllow\":[\"repo-only\"]}", log);
+        assertEquals(Arrays.asList("repo-only"), Policy.layered(org, repo).getMcpAllow()); // repo overrides
+    }
+
+    @Test
     public void layeredHandlesNullSides() throws Exception {
         Policy repo = Policy.fromJson("{\"failOn\":\"review\"}", log);
         assertEquals("review", Policy.layered(null, repo).getFailOn()); // no org default

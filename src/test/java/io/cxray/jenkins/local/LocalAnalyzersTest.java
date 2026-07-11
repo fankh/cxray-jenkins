@@ -31,6 +31,33 @@ public class LocalAnalyzersTest {
         assertTrue(r.findings.stream().noneMatch(f -> "unpinned-model".equals(f.title)));
     }
 
+    @Test
+    public void pickleArtifactIsUnsafeSerializationCritical() {
+        GateResult r = LocalAnalyzers.analyzeModel("FROM ./checkpoints/model.pkl");
+        assertEquals("fail", r.verdict);
+        assertTrue(r.findings.stream().anyMatch(f -> "unsafe-serialization".equals(f.title) && "critical".equals(f.severity)));
+    }
+
+    @Test
+    public void torchLoadCallIsUnsafeDeserialization() {
+        GateResult r = LocalAnalyzers.analyzeModel("RUN python -c \"import torch; m = torch.load('weights.pt')\"");
+        assertEquals("fail", r.verdict);
+        assertTrue(r.findings.stream().anyMatch(f -> "unsafe-deserialization".equals(f.title)));
+    }
+
+    @Test
+    public void safetensorsArtifactHasNoSerializationFinding() {
+        GateResult r = LocalAnalyzers.analyzeModel("FROM registry.example.com/models/llama-3.2.safetensors@sha256:deadbeefcafebabe0123");
+        assertTrue(r.findings.stream().noneMatch(f -> f.title.contains("serialization")));
+    }
+
+    @Test
+    public void binArtifactIsReviewNotFail() {
+        GateResult r = LocalAnalyzers.analyzeModel("FROM registry.example.com/models/pytorch_model-1.0.bin@sha256:deadbeefcafebabe0123");
+        assertEquals("review", r.verdict);
+        assertTrue(r.findings.stream().anyMatch(f -> "review-serialization".equals(f.title)));
+    }
+
     // ── transport ──
     @Test
     public void unpinnedNpxTransportFails() {
