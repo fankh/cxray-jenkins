@@ -97,6 +97,50 @@ public final class LocalAnalyzers {
     private static final Pattern M_UNSAFE_LOAD = Pattern.compile("torch\\.load\\s*\\(|pickle\\.loads?\\s*\\(|joblib\\.load\\s*\\(|cloudpickle|keras\\.models\\.load_model", Pattern.CASE_INSENSITIVE);
     // Provenance (OWASP-LLM03): weights fetched from a file-sharing / unverifiable source — no registry, no integrity guarantee.
     private static final Pattern M_UNTRUSTED_HUB = Pattern.compile("civitai\\.com|pastebin\\.com|gist\\.github|drive\\.google|dropbox\\.com|mega\\.nz|wetransfer\\.com|anonfiles|mediafire", Pattern.CASE_INSENSITIVE);
+    // "KEV for models": well-known families a malicious upload may typosquat / namespace-confuse.
+    private static final java.util.Set<String> MODEL_FAMILIES = new java.util.HashSet<>(java.util.Arrays.asList(
+        "llama", "codellama", "tinyllama", "mistral", "mixtral", "gemma", "deepseek", "falcon", "vicuna",
+        "starcoder", "zephyr", "baichuan", "internlm", "dolphin", "hermes", "wizardlm", "openchat",
+        "bloom", "pythia", "stablelm", "phind", "solar", "command"));
+
+    /** Leading alpha token of the model name (drops registry path, tag, digest, version digits). */
+    private static String modelToken(String ref) {
+        String s = ref;
+        int slash = Math.max(s.lastIndexOf('/'), s.lastIndexOf('\\'));
+        if (slash >= 0) s = s.substring(slash + 1);
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = Character.toLowerCase(s.charAt(i));
+            if (c >= 'a' && c <= 'z') b.append(c); else break;
+        }
+        return b.toString();
+    }
+
+    /** A model token is a suspected typosquat if it's a distance-1 lookalike of a known family (but not one). */
+    private static boolean isTyposquat(String token) {
+        if (token.length() < 5 || MODEL_FAMILIES.contains(token)) return false;
+        for (String fam : MODEL_FAMILIES) {
+            if (fam.length() >= 5 && Math.abs(fam.length() - token.length()) <= 1 && editDistanceIsOne(token, fam)) return true;
+        }
+        return false;
+    }
+
+    private static boolean editDistanceIsOne(String a, String b) {
+        int la = a.length(), lb = b.length();
+        if (Math.abs(la - lb) > 1) return false;
+        if (la == lb) {
+            int diff = 0;
+            for (int i = 0; i < la; i++) if (a.charAt(i) != b.charAt(i) && ++diff > 1) return false;
+            return diff == 1;
+        }
+        String s = la < lb ? a : b, t = la < lb ? b : a; // s is shorter by one
+        int i = 0, j = 0; boolean skipped = false;
+        while (i < s.length() && j < t.length()) {
+            if (s.charAt(i) == t.charAt(j)) { i++; j++; }
+            else { if (skipped) return false; skipped = true; j++; }
+        }
+        return true;
+    }
 
     private static boolean looksRemote(String ref) {
         return REMOTE_URL.matcher(ref).find() || ref.contains("/") || REMOTE_EXT.matcher(ref).find() || REMOTE_HOST.matcher(ref).find();
@@ -121,6 +165,8 @@ public final class LocalAnalyzers {
                 ref = ref.replaceAll("[\"',]+$", "");
                 if (HTTP_PREFIX.matcher(ref).find()) f.add(new Finding("model", "high", "insecure-source", "model pulled over plaintext http:// — weights can be swapped in transit", line));
                 if (M_UNTRUSTED_HUB.matcher(ref).find()) f.add(new Finding("model", "high", "untrusted-provenance", "model fetched from a file-sharing / unverifiable source — no registry provenance or integrity guarantee; use a trusted registry with a pinned digest", line));
+                String tok = modelToken(ref);
+                if (isTyposquat(tok)) f.add(new Finding("model", "high", "typosquat-model", "model name \"" + tok + "\" is a one-character lookalike of a well-known model family — possible typosquat / namespace-confusion attack; verify the publisher and pin the digest", line));
                 if (looksRemote(ref) && !M_PINNED.matcher(ref).find()) f.add(new Finding("model", "medium", "unpinned-model", "model source has no digest/version pin — the fetched weights can change silently", line));
                 if (M_UNSAFE_ARTIFACT.matcher(ref).find()) f.add(new Finding("model", "critical", "unsafe-serialization", "model artifact uses an unsafe serialization format (pickle/torch/joblib/h5) — loading it executes arbitrary code (RCE); convert to safetensors/gguf/onnx", line));
                 else if (M_REVIEW_ARTIFACT.matcher(ref).find()) f.add(new Finding("model", "medium", "review-serialization", "model artifact format (.bin/.pb/.ggml) can carry an unsafe payload — prefer safetensors/gguf/onnx", line));

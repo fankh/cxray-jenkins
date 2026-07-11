@@ -120,8 +120,9 @@ ERROR (not a security FAILURE).
 - **Identity & authorization** (ASI03): long-lived static key, missing scoping/TTL, no pre-action
   authorization, no human-in-the-loop. Not-assessed (no auth signal) never falsely fails.
 - **Model runtime** (E18.2/E18.3): untrusted/unpinned `FROM`, http:// pull, **untrusted provenance**
-  (weights from a file-sharing host — dropbox/drive/gist/civitai/…), poisoned baked-in `SYSTEM` prompt,
-  `0.0.0.0` bind with no auth, inline secrets, and **unsafe serialization**
+  (weights from a file-sharing host — dropbox/drive/gist/civitai/…), **typosquat / namespace-confusion**
+  (a one-char lookalike of a known model family, e.g. `llamma` vs `llama`), poisoned baked-in `SYSTEM`
+  prompt, `0.0.0.0` bind with no auth, inline secrets, and **unsafe serialization**
   (pickle/`.pt`/`.pth`/joblib/`.h5` artifacts or `torch.load`/`pickle.load` calls → RCE on load) — with line numbers.
 - **Tool poisoning** (E19.1/E33.2): prompt-injection directives, hidden/bidi unicode, exfil phrasing.
 - **Toxic-capability matrix** (E22/M7): a single tool holding a dangerous capability *combination*

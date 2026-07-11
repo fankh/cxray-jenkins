@@ -65,6 +65,22 @@ public class LocalAnalyzersTest {
     }
 
     @Test
+    public void typosquatModelNameFails() {
+        GateResult r = LocalAnalyzers.analyzeModel("FROM registry.example.com/models/llamma-3.2@sha256:deadbeefcafebabe0123");
+        assertEquals("fail", r.verdict);
+        assertTrue(r.findings.stream().anyMatch(f -> "typosquat-model".equals(f.title) && "high".equals(f.severity)));
+    }
+
+    @Test
+    public void legitFamilyNameIsNotTyposquat() {
+        // exact family (llama) and a longer non-lookalike (tinyllama) must not trip the detector
+        assertTrue(LocalAnalyzers.analyzeModel("FROM registry.example.com/models/llama-3.2@sha256:deadbeefcafebabe0123")
+                .findings.stream().noneMatch(f -> "typosquat-model".equals(f.title)));
+        assertTrue(LocalAnalyzers.analyzeModel("FROM registry.example.com/models/tinyllama-1.1b@sha256:deadbeefcafebabe0123")
+                .findings.stream().noneMatch(f -> "typosquat-model".equals(f.title)));
+    }
+
+    @Test
     public void binArtifactIsReviewNotFail() {
         GateResult r = LocalAnalyzers.analyzeModel("FROM registry.example.com/models/pytorch_model-1.0.bin@sha256:deadbeefcafebabe0123");
         assertEquals("review", r.verdict);
