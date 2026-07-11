@@ -1,5 +1,7 @@
 package io.cxray.jenkins.local;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -152,6 +154,90 @@ public final class LocalAnalyzers {
         for (Finding fn : f) worst = Math.max(worst, "critical".equals(fn.severity) ? 2 : "high".equals(fn.severity) ? 1 : 0);
         String verdict = worst >= 2 ? "fail" : worst >= 1 ? "review" : "pass";
         return new GateResult(verdict, f);
+    }
+
+    // ── OWASP-LLM01 / ASI01: indirect prompt-injection scan of ingested content ──
+    private static final Pattern C_OVERRIDE = Pattern.compile(
+        "ignore\\s+(all\\s+)?(the\\s+)?(previous|prior|above|earlier)\\s+(instructions?|prompts?|messages?)"
+        + "|disregard\\s+(the\\s+)?(above|previous|prior|system)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern C_ROLETAG = Pattern.compile(
+        "</?\\s*(system|important|admin|instructions?|assistant)\\s*>", Pattern.CASE_INSENSITIVE);
+    private static final Pattern C_ROLEHIJACK = Pattern.compile(
+        "\\byou\\s+are\\s+now\\b|new\\s+(system\\s+)?(instructions?|role|persona)"
+        + "|\\bact\\s+as\\s+(an?\\s+)?(admin|root|system|dan)\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern C_COVERT = Pattern.compile(
+        "do\\s+not\\s+(tell|inform|mention|reveal|warn|notify)\\b[^.]{0,30}\\b(user|human|operator)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern C_LEAK = Pattern.compile(
+        "reveal\\s+(your\\s+)?(the\\s+)?(system\\s+)?(prompt|instructions?)"
+        + "|print\\s+your\\s+(system\\s+)?(prompt|instructions?)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern C_CRED = Pattern.compile(
+        "\\.ssh/id_rsa|\\.aws/credentials|\\.env\\b|\\bapi[_-]?key\\b|\\bsecret[_-]?key\\b|\\bprivate[_-]?key\\b", Pattern.CASE_INSENSITIVE);
+
+    /** Scan agent-ingested data (tool output, retrieved docs) for indirect prompt-injection markers. */
+    public static GateResult analyzeContent(String text) {
+        List<Finding> f = new ArrayList<>();
+        if (text == null || text.isEmpty()) return new GateResult("pass", f);
+        addIf(f, C_OVERRIDE, text, "critical", "override-instructions");
+        addIf(f, C_ROLETAG, text, "critical", "injected-role-tag");
+        addIf(f, C_ROLEHIJACK, text, "critical", "role-hijack");
+        addIf(f, C_COVERT, text, "critical", "covert-instruction");
+        addIf(f, C_LEAK, text, "critical", "prompt-leak");
+        addIf(f, P_EXFIL, text, "critical", "exfiltration");
+        addIf(f, C_CRED, text, "high", "credential-bait");
+        int hidden = -1;
+        for (int i = 0; i < text.length() && hidden < 0; i++) {
+            int c = text.charAt(i);
+            for (int[] r : HIDDEN_RANGES) if (c >= r[0] && c <= r[1]) { hidden = c; break; }
+        }
+        if (hidden >= 0) f.add(new Finding("content", "high", "hidden-unicode",
+            "invisible/bidi char U+" + Integer.toHexString(hidden).toUpperCase(), 0));
+        boolean fail = false;
+        for (Finding fn : f) if ("critical".equals(fn.severity) || "high".equals(fn.severity)) fail = true;
+        return new GateResult(fail ? "fail" : (f.isEmpty() ? "pass" : "review"), f);
+    }
+
+    private static void addIf(List<Finding> f, Pattern p, String text, String sev, String kind) {
+        Matcher m = p.matcher(text);
+        if (m.find()) f.add(new Finding("content", sev, kind, m.group().trim().replaceAll("\\s+", " "), 0));
+    }
+
+    // ── ASI03 / governance: approved MCP-server allowlist ─────────────────────
+    /** allow entries are server ids, or "id=sha256" to also pin the manifest hash. */
+    public static GateResult checkServerAllowlist(String serverId, String manifest, List<String> allow) {
+        List<Finding> f = new ArrayList<>();
+        if (allow == null || allow.isEmpty()) return new GateResult("pass", f);
+        if (serverId == null || serverId.isEmpty()) {
+            f.add(new Finding("mcp", "high", "unidentified-server", "an MCP allowlist is set but no server id was provided", 0));
+        } else {
+            boolean listed = false; String pinned = null;
+            for (String a : allow) {
+                String id = a; String sha = null;
+                int eq = a.indexOf('=');
+                if (eq > 0) { id = a.substring(0, eq).trim(); sha = a.substring(eq + 1).trim(); }
+                if (id.equals(serverId)) { listed = true; pinned = sha; break; }
+            }
+            if (!listed) {
+                f.add(new Finding("mcp", "critical", "unapproved-server",
+                    "MCP server \"" + serverId + "\" is not on the approved allowlist (shadow AI / ASI03)", 0));
+            } else if (pinned != null && !pinned.isEmpty()) {
+                String h = sha256(manifest == null ? "" : manifest);
+                if (!h.equalsIgnoreCase(pinned)) f.add(new Finding("mcp", "critical", "server-drift",
+                    "approved server manifest hash " + h.substring(0, 12) + "… ≠ pinned "
+                    + pinned.substring(0, Math.min(12, pinned.length())) + "…", 0));
+            }
+        }
+        boolean fail = false;
+        for (Finding fn : f) if ("critical".equals(fn.severity) || "high".equals(fn.severity)) fail = true;
+        return new GateResult(fail ? "fail" : "pass", f);
+    }
+
+    private static String sha256(String s) {
+        try {
+            byte[] d = MessageDigest.getInstance("SHA-256").digest(s.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : d) sb.append(String.format("%02x", b));
+            return sb.toString();
+        } catch (java.security.NoSuchAlgorithmException e) { return ""; }
     }
 
     // ── aggregate: run the analyzers for whichever inputs are provided ─────────

@@ -15,6 +15,14 @@
              description="Workspace path to an Ollama Modelfile / model-server config — supply-chain &amp; exposure scan. Optional.">
       <f:textbox/>
     </f:entry>
+    <f:entry title="Ingested content" field="contentPath"
+             description="Workspace path to agent-ingested data (retrieved doc / tool output) — indirect prompt-injection scan (OWASP-LLM01 / ASI01). Optional.">
+      <f:textbox/>
+    </f:entry>
+    <f:entry title="MCP server id" field="mcpServerId"
+             description="Identity of the server behind the tool manifest — checked against the mcpAllow allowlist in .cxray/policy.json (ASI03). Optional.">
+      <f:textbox/>
+    </f:entry>
   </f:radioBlock>
 
   <f:radioBlock name="mode" value="api" title="CXRay API — gate an image scanned in CXRay"

@@ -14,6 +14,8 @@ public final class Compliance {
     public static String frameworks(String check, String title) {
         String c = check == null ? "" : check.toLowerCase();
         switch (c) {
+            case "content":
+                return "OWASP-LLM01 (prompt injection) · ASI01 · ATLAS AML.T0051";
             case "mcp":
                 return "OWASP-Agentic (ASI) — see detail";
             case "poison":
@@ -45,6 +47,8 @@ public final class Compliance {
         String c = check == null ? "" : check.toLowerCase();
         String t = title == null ? "" : title.toLowerCase();
         switch (c) {
+            case "content":
+                return "Treat ingested data as untrusted: strip/neutralize injected instructions before the agent reads it, and don't let tool output drive control flow.";
             case "mcp":
                 return "Re-pin the manifest after removing the flagged tool behavior; a failing gate requires re-authorization before deploy.";
             case "poison":

@@ -60,6 +60,8 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
     private String configPath;
     private String manifestPath;
     private String modelFilePath;
+    private String contentPath;   // OWASP-LLM01: scan ingested data / tool output for indirect injection
+    private String mcpServerId;   // ASI03: the server identity to check against the policy allowlist
 
     // --- api mode ---
     private String imageId;
@@ -101,6 +103,10 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
     @DataBoundSetter public void setManifestPath(String v) { this.manifestPath = fix(v); }
     public String getModelFilePath() { return modelFilePath; }
     @DataBoundSetter public void setModelFilePath(String v) { this.modelFilePath = fix(v); }
+    public String getContentPath() { return contentPath; }
+    @DataBoundSetter public void setContentPath(String v) { this.contentPath = fix(v); }
+    public String getMcpServerId() { return mcpServerId; }
+    @DataBoundSetter public void setMcpServerId(String v) { this.mcpServerId = fix(v); }
 
     public String getImageId() { return imageId; }
     @DataBoundSetter public void setImageId(String v) { this.imageId = fix(v); }
@@ -138,7 +144,7 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
         CXRayGlobalConfiguration cfg0 = CXRayGlobalConfiguration.get();
         Policy orgDefault = cfg0 != null ? Policy.fromJson(cfg0.getDefaultPolicyJson(), log) : null;
         Policy policy = Policy.layered(orgDefault, Policy.load(workspace, log));
-        GateResult result = "api".equals(mode) ? performApi(run, workspace, log, policy) : performLocal(workspace, log);
+        GateResult result = "api".equals(mode) ? performApi(run, workspace, log, policy) : performLocal(workspace, log, policy);
         if (policy != null) {
             result = policy.applyWaivers(result, log, java.time.LocalDate.now());
         }
@@ -201,15 +207,30 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
     }
 
     // ── Method B: local/offline ──
-    private GateResult performLocal(FilePath workspace, PrintStream log) throws InterruptedException, IOException {
+    private GateResult performLocal(FilePath workspace, PrintStream log, Policy policy) throws InterruptedException, IOException {
         log.println("[CXRay] Local (offline) agent-security gate");
         String config = read(workspace, configPath, log);
         String manifest = read(workspace, manifestPath, log);
         String model = read(workspace, modelFilePath, log);
-        if (config == null && manifest == null && model == null) {
-            throw new AbortException("[CXRay] No inputs — set at least one of configPath / manifestPath / modelFilePath.");
+        String content = read(workspace, contentPath, log);
+        if (config == null && manifest == null && model == null && content == null) {
+            throw new AbortException("[CXRay] No inputs — set at least one of configPath / manifestPath / modelFilePath / contentPath.");
         }
-        return LocalAnalyzers.run(config, manifest, model);
+        GateResult base = LocalAnalyzers.run(config, manifest, model);
+        List<Finding> all = new ArrayList<>(base.findings);
+        String verdict = base.verdict;
+        if (content != null) {                                   // OWASP-LLM01 / ASI01 indirect injection
+            GateResult c = LocalAnalyzers.analyzeContent(content);
+            all.addAll(c.findings);
+            verdict = GateResult.worst(verdict, c.verdict);
+        }
+        List<String> allow = policy != null ? policy.getMcpAllow() : null;
+        if (allow != null && !allow.isEmpty()) {                 // ASI03 approved-MCP-server allowlist
+            GateResult sp = LocalAnalyzers.checkServerAllowlist(mcpServerId, manifest, allow);
+            all.addAll(sp.findings);
+            verdict = GateResult.worst(verdict, sp.verdict);
+        }
+        return new GateResult(verdict, all);
     }
 
     // ── Method A: CXRay API (scan-and-gate, or gate an already-scanned image) ──

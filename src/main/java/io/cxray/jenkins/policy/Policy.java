@@ -40,6 +40,7 @@ public final class Policy {
     private Double maxCvss;
     private Boolean failOnKev;
     private Boolean dryRun;
+    private List<String> mcpAllow;   // approved MCP server ids (or "id=sha256" to pin the manifest hash)
     private final List<Waiver> waivers = new ArrayList<>();
 
     public String getFailOn() { return failOn; }
@@ -47,6 +48,7 @@ public final class Policy {
     public Double getMaxCvss() { return maxCvss; }
     public Boolean getFailOnKev() { return failOnKev; }
     public Boolean getDryRun() { return dryRun; }
+    public List<String> getMcpAllow() { return mcpAllow; }
     public List<Waiver> getWaivers() { return waivers; }
 
     /** A time-boxed, owned exception that suppresses a matching finding. */
@@ -118,6 +120,18 @@ public final class Policy {
         if (n.hasNonNull("maxCvss")) p.maxCvss = n.get("maxCvss").asDouble();
         if (n.hasNonNull("failOnKev")) p.failOnKev = n.get("failOnKev").asBoolean();
         if (n.hasNonNull("dryRun")) p.dryRun = n.get("dryRun").asBoolean();
+        if (n.has("mcpAllow") && n.get("mcpAllow").isArray()) {
+            p.mcpAllow = new ArrayList<>();
+            for (JsonNode a : n.get("mcpAllow")) {
+                // string id, or {id, sha256} object -> "id=sha256"
+                if (a.isTextual()) { String v = a.asText().trim(); if (!v.isEmpty()) p.mcpAllow.add(v); }
+                else if (a.isObject() && a.hasNonNull("id")) {
+                    String id = a.get("id").asText().trim();
+                    String sha = a.hasNonNull("sha256") ? a.get("sha256").asText().trim() : "";
+                    if (!id.isEmpty()) p.mcpAllow.add(sha.isEmpty() ? id : id + "=" + sha);
+                }
+            }
+        }
         if (n.has("waivers") && n.get("waivers").isArray()) {
             for (JsonNode w : n.get("waivers")) {
                 Waiver wv = new Waiver();

@@ -7,7 +7,7 @@ violate security policy. Two methods:
 |---|---|---|
 | Needs CXRay server + access key | ✅ | ❌ (no network, no credentials) |
 | Container CVE/KEV · license · secrets · AI supply-chain | ✅ | ❌ (needs the backend scanner) |
-| Agent/AI-security (poisoning · toxic-capability · transport · identity · model-runtime) | ✅ | ✅ (self-contained analyzers) |
+| Agent/AI-security (poisoning · toxic-capability · transport · identity · model-runtime · prompt-injection · server-allowlist) | ✅ | ✅ (self-contained analyzers) |
 | Inputs | image ref → scanned in CXRay | workspace files (mcp.json / server.json / Modelfile / tools manifest) |
 
 **Both methods ship.** The plugin is a thin client — all policy comes from CXRay; it never
@@ -16,8 +16,9 @@ re-implements it.
 ## Status
 
 - **P0 Scaffold** ✅ — Maven `hpi`, Jenkins 2.528.3 LTS + Java 21.
-- **P1 Local gate** ✅ — offline analyzers (transport · identity · model-runtime · poisoning) + a
-  Freestyle/Pipeline build step that fails the build on policy violation.
+- **P1 Local gate** ✅ — offline analyzers (transport · identity · model-runtime · poisoning ·
+  indirect prompt-injection · approved-server allowlist) + a Freestyle/Pipeline build step that fails
+  the build on policy violation.
 - **P2 API gate** ✅ — gate an already-scanned image via the CXRay API (CVE/KEV · license · secrets ·
   AI supply-chain), Jenkins Credentials + global config, IP-bound access-key bearer.
 - **P3 Scan-and-gate** ✅ — give a registry image (`repo`/`image`/`tag`) and the plugin scans it
@@ -66,6 +67,8 @@ Add build step **"CXRay Security Gate (local)"** and set any of:
 - **MCP server config** — path to `mcp.json` / `server.json` (transport + identity posture)
 - **Tool manifest** — path to a `tools/list` manifest (poisoning scan)
 - **Model file** — path to an Ollama `Modelfile` / model-server config (supply-chain + exposure)
+- **Ingested content** — path to agent-ingested data / tool output (indirect prompt-injection scan)
+- **MCP server id** — server identity checked against the `mcpAllow` allowlist in `.cxray/policy.json`
 - **Fail on** — `fail` (default) or `review`
 
 ### Pipeline
@@ -76,6 +79,8 @@ cxrayGate mode: 'local',
           configPath: 'mcp/server.json',
           manifestPath: 'mcp/tools.json',
           modelFilePath: 'Modelfile',
+          contentPath: 'rag/retrieved.txt',
+          mcpServerId: 'payments-mcp',
           failOn: 'fail'
 ```
 
@@ -119,6 +124,11 @@ ERROR (not a security FAILURE).
 - **Tool poisoning** (E19.1/E33.2): prompt-injection directives, hidden/bidi unicode, exfil phrasing.
 - **Toxic-capability matrix** (E22/M7): a single tool holding a dangerous capability *combination*
   (exec+network, exec+secrets, network+secrets, …) — worse than two separate tools.
+- **Indirect prompt-injection** (OWASP-LLM01/ASI01): scans agent-ingested data (retrieved docs, tool
+  output) for override/role-hijack/covert directives, prompt-leak/exfil phrasing, credential bait, and
+  hidden/bidi unicode — the untrusted-content path, distinct from the tool-description poisoning scan.
+- **Approved-server allowlist** (ASI03): fails an MCP server not on the repo's `mcpAllow` allowlist
+  (shadow AI), or one whose manifest hash drifts from the pinned `id=sha256` — governance at the gate.
 
 Regexes are kept in sync with the CXRay console (`functions/*.ts`), the `cxray-gate` CLI
 (`tools/cxray-gate/posture.mjs`), and the backend (`AgentPostureService.java`).
