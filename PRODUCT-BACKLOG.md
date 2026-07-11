@@ -72,7 +72,7 @@ Size = S/M/L. Prune and re-tag freely.
 
 ### E5 — Evidence, attestation & compliance
 - [x] **T5.1** ✅ [Now] M — **Compliance mapping matrix** (see §3) — map every check to OWASP LLM/ASI, MITRE ATLAS, NIST AI RMF/SSDF, SLSA, EU CRA/AI Act, Korea SBOM. Surface the mapping in reports.
-- [ ] **T5.2** [Next] M — Signed gate evidence: emit an in-toto/SLSA-style attestation per gated build (verdict + inputs + policy hash) for audit.
+- [x] **T5.2** ✅ [Next] M — Gate evidence attestation: emit an in-toto Statement v1 (SLSA-style) per gated build — verdict + per-gate results + effective-policy digest + CI invocation. Shipped in the Jenkins plugin (`Attestation.java`) and the `cxray-gate` CLI/Action (`--attest`), same predicateType. *(remaining: signing is left to a cosign/in-toto step — by design)*
 - [ ] **T5.3** [Next] M — SBOM export/ingest hardening: CycloneDX + SPDX in/out; VEX support to suppress non-exploitable CVEs.
 - [ ] **T5.4** [Later] M — Compliance report pack (per release / per repo) mappable to an auditor's control list.
 
