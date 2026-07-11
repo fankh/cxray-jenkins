@@ -52,6 +52,19 @@ public class LocalAnalyzersTest {
     }
 
     @Test
+    public void fileSharingSourceIsUntrustedProvenance() {
+        GateResult r = LocalAnalyzers.analyzeModel("FROM https://www.dropbox.com/s/abc/model.gguf");
+        assertEquals("fail", r.verdict);
+        assertTrue(r.findings.stream().anyMatch(f -> "untrusted-provenance".equals(f.title) && "high".equals(f.severity)));
+    }
+
+    @Test
+    public void trustedRegistrySourceHasNoProvenanceFinding() {
+        GateResult r = LocalAnalyzers.analyzeModel("FROM registry.example.com/models/llama-3.2@sha256:deadbeefcafebabe0123");
+        assertTrue(r.findings.stream().noneMatch(f -> "untrusted-provenance".equals(f.title)));
+    }
+
+    @Test
     public void binArtifactIsReviewNotFail() {
         GateResult r = LocalAnalyzers.analyzeModel("FROM registry.example.com/models/pytorch_model-1.0.bin@sha256:deadbeefcafebabe0123");
         assertEquals("review", r.verdict);
