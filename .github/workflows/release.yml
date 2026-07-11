@@ -26,8 +26,8 @@ jobs:
       - name: Build & verify
         run: mvn -B -ntp clean verify
 
-      - name: Checksum the .hpi
-        run: cd target && sha256sum *.hpi | tee SHA256SUMS
+      - name: Checksum the .hpi + SBOM
+        run: cd target && sha256sum *.hpi cxray-jenkins-sbom.json | tee SHA256SUMS
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018 # v1
@@ -39,6 +39,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" target/*.hpi target/SHA256SUMS \
+          gh release create "${GITHUB_REF_NAME}" target/*.hpi target/cxray-jenkins-sbom.json target/SHA256SUMS \
             --title "CXRay Security Gate ${GITHUB_REF_NAME}" --generate-notes \
-          || gh release upload "${GITHUB_REF_NAME}" target/*.hpi target/SHA256SUMS --clobber
+          || gh release upload "${GITHUB_REF_NAME}" target/*.hpi target/cxray-jenkins-sbom.json target/SHA256SUMS --clobber

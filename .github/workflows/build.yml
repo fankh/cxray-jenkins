@@ -30,19 +30,20 @@ jobs:
       - name: Build & verify
         run: mvn -B -ntp clean verify
 
-      - name: Checksum the .hpi
+      - name: Checksum the .hpi + SBOM
         if: success()
         run: |
           cd target
-          sha256sum *.hpi | tee SHA256SUMS
+          sha256sum *.hpi cxray-jenkins-sbom.json | tee SHA256SUMS
 
-      - name: Upload plugin (.hpi + checksum)
+      - name: Upload plugin (.hpi + SBOM + checksum)
         if: success()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cxray-jenkins-hpi
           path: |
             target/*.hpi
+            target/cxray-jenkins-sbom.json
             target/SHA256SUMS
           if-no-files-found: error
 
