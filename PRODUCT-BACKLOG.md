@@ -7,14 +7,16 @@ engineering tasks live in [`ROADMAP.md`](ROADMAP.md); this file is the strategic
 > Scope note: this backlog spans multiple repos. It lives here because that's where we're working;
 > relocate to the product repo when convenient. IDs (`E#`, `T#`) are stable references.
 
-> **Status (2026-07-10):** A recon confirmed the entire parent plan (agent risk-depth `/mcp/depth`,
-> AI supply-chain `/ai/scan`, CVE gate, secrets gate, MCP `/mcp/gate`, the JWT access-key fallback,
-> gate-override audit, the ProgressBar fix, capability matrix, AI Components, dashboard depth) is
-> **already implemented and shipped** in `cxray-main`/`cxray-console`. The plugin-side "Now/Next"
-> items below are **done** (see the plugin `CHANGELOG`): findings enrichment (T5.1/T6.1/T4.1),
-> contract test (T4.5/D2), policy-as-code (T3.1), notifications (T7.1), and MCP-gate-in-API (T2.3/C2).
-> What remains are the **[Next]/[Later] product epics** — they need specs/decisions and deploy the
-> live app, so they are not auto-implemented. Pick from §5 to schedule the next build.
+> **Status (2026-07-11):** The parent plan (agent risk-depth `/mcp/depth`, AI supply-chain `/ai/scan`,
+> CVE/secrets/MCP gates, JWT access-key fallback, gate-override audit, ProgressBar fix, capability
+> matrix, AI Components, dashboard depth) is **implemented and shipped** — the risk-depth + durable
+> posture surfaces (T2.1/T2.2) were **verified live on console-dev** this session. Since then the
+> **offline agent-security gate suite** has been hardened across plugin + `cxray-gate` CLI (kept in
+> normalization lock-step): indirect prompt-injection (OWASP-LLM01/ASI01), approved-MCP-server
+> allowlist (ASI03), unsafe model (de)serialization → RCE (T1.3), and untrusted model provenance
+> (T1.2) — plus policy inheritance carrying `mcpAllow` (T3.3), a pre-commit hook covering config +
+> tool-manifest + Modelfile (T4.4), and GitLab/Azure CI templates (T4.2). Remaining: the **[Next]/
+> [Later] product epics** below — they need specs/decisions and deploy the live app.
 
 ---
 
@@ -43,14 +45,14 @@ Size = S/M/L. Prune and re-tag freely.
 
 ### E1 — AI/Model supply-chain detection *(detect)*
 - [ ] **T1.1** [Now] S — Validate `/ai/scan` real response vs plugin/CLI normalization; lock a fixture. *(also ROADMAP B2)*
-- [ ] **T1.2** [Next] M — Model provenance: flag models pulled from untrusted hubs / unsigned; surface source + license.
-- [ ] **T1.3** [Next] M — Expand unsafe-serialization coverage (pickle/`torch.load`/joblib/keras-lambda) with a documented risk grade + remediation ("convert to safetensors/gguf").
+- [x] **T1.2** ✅ [Next] M — Model provenance: flag weights from file-sharing / unverifiable sources (dropbox/drive/gist/civitai/…) as `untrusted-provenance` in the offline model gate (plugin + CLI). *(remaining: surface source + license in reports)*
+- [x] **T1.3** ✅ [Next] M — Unsafe-serialization coverage: pickle/`.pt`/`.pth`/joblib/`.h5` artifacts + `torch.load`/`pickle.load` calls → critical `unsafe-(de)serialization` with remediation, in the offline model gate (plugin + CLI).
 - [ ] **T1.4** [Later] L — Model card / dataset lineage capture into the Agent-BOM (data poisoning provenance).
 - [ ] **T1.5** [Later] M — Known-malicious-model feed (typosquat / trojaned weights) — a "KEV for models".
 
 ### E2 — Agentic runtime & posture *(measure)*
-- [ ] **T2.1** [Now] M — Ship the agent risk-depth surface (`/mcp/depth` + dashboard + `/mcp` matrix) from the parent plan.
-- [ ] **T2.2** [Now] S — Durable per-pin posture history (identity/transport/capability) trends over time — regression alerts on drift.
+- [x] **T2.1** ✅ [Now] M — Agent risk-depth surface (`/mcp/depth` + dashboard panel + `/mcp` matrix) — shipped; verified live on console-dev (servers/tools/toxic + ASI01/03/04 counts render with real data).
+- [x] **T2.2** ✅ [Now] S — Durable per-pin posture rollup (identity/transport/capability) — shipped; verified live (dashboard "Agent security posture · durable rollup" panel).
 - [x] **T2.3** ✅ [Next] M — MCP gate in CI (plugin + Action) — block on poisoning/drift/toxic-capability, not just container gates.
 - [ ] **T2.4** [Next] M — Toxic-capability policy tuning: per-org allow/deny of capability pairs; justification workflow.
 - [ ] **T2.5** [Later] L — Runtime/observed-behavior posture (what the agent *did*) vs declared Agent-BOM — declared-vs-actual diff.
@@ -58,14 +60,14 @@ Size = S/M/L. Prune and re-tag freely.
 ### E3 — Policy-as-Code & governance
 - [x] **T3.1** ✅ [Now] M — A single declarative policy file (repo-committed) the gate reads: thresholds, allow/deny lists, per-gate on/off, waivers. One source of truth for Jenkins + Action + console.
 - [x] **T3.2** ✅ [Next] M — Waivers/exceptions with expiry + owner + reason; enforced centrally, audited (extend the gate-override audit).
-- [ ] **T3.3** [Next] S — Policy inheritance: org default → team → repo overrides.
+- [x] **T3.3** ✅ [Next] S — Policy inheritance: org default → repo overrides (`Policy.layered()` — repo scalars win, waivers union, mcpAllow inherited). *(remaining: a distinct team tier)*
 - [ ] **T3.4** [Later] M — "Policy simulation" / dry-run: show what *would* block before enforcing (adoption lever).
 
 ### E4 — Universal CI/CD gate (coverage)
 - [x] **T4.1** ✅ [Now] S — Jenkins plugin: PR/commit status + human-readable "why blocked" (ROADMAP C1).
-- [ ] **T4.2** [Next] M — GitLab CI + Azure DevOps + Bitbucket templates (parity with the GitHub Action).
+- [x] **T4.2** ✅ [Next] M — GitLab CI + Azure DevOps templates shipped (`tools/cxray-gate/ci/`, SARIF into the MR SAST tab / build artifact). *(remaining: Bitbucket)*
 - [ ] **T4.3** [Next] S — Container-native gate: an admission-webhook / `kubectl` mode reusing the same verdicts (shift-right).
-- [ ] **T4.4** [Later] M — Pre-commit / IDE hook for the local (offline) checks — earliest possible feedback.
+- [x] **T4.4** ✅ [Later] M — Pre-commit hook for the offline checks (`tools/cxray-gate/hooks/` + installer) — auto-detects MCP config / tool manifest / Modelfile, honors `.cxray/policy.json`. *(remaining: an editor/IDE hook)*
 - [x] **T4.5** ✅ [Now] S — Keep plugin + `cxray-gate` CLI normalization identical (shared contract test) — ROADMAP D2.
 
 ### E5 — Evidence, attestation & compliance
