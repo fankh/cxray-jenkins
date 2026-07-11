@@ -48,7 +48,7 @@ Size = S/M/L. Prune and re-tag freely.
 - [x] **T1.2** ✅ [Next] M — Model provenance: flag weights from file-sharing / unverifiable sources (dropbox/drive/gist/civitai/…) as `untrusted-provenance` in the offline model gate (plugin + CLI). *(remaining: surface source + license in reports)*
 - [x] **T1.3** ✅ [Next] M — Unsafe-serialization coverage: pickle/`.pt`/`.pth`/joblib/`.h5` artifacts + `torch.load`/`pickle.load` calls → critical `unsafe-(de)serialization` with remediation, in the offline model gate (plugin + CLI).
 - [ ] **T1.4** [Later] L — Model card / dataset lineage capture into the Agent-BOM (data poisoning provenance).
-- [ ] **T1.5** [Later] M — Known-malicious-model feed (typosquat / trojaned weights) — a "KEV for models".
+- [x] **T1.5** ✅ [Later] M — "KEV for models": offline typosquat / namespace-confusion detection — a `FROM` model whose name is a one-char lookalike of a known family (llama/mistral/…) is flagged (plugin + CLI). *(remaining: a curated trojaned-weights denylist feed)*
 
 ### E2 — Agentic runtime & posture *(measure)*
 - [x] **T2.1** ✅ [Now] M — Agent risk-depth surface (`/mcp/depth` + dashboard panel + `/mcp` matrix) — shipped; verified live on console-dev (servers/tools/toxic + ASI01/03/04 counts render with real data).
