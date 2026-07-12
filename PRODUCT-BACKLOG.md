@@ -47,6 +47,7 @@ Size = S/M/L. Prune and re-tag freely.
 - [ ] **T1.1** [Now] S — Validate `/ai/scan` real response vs plugin/CLI normalization; lock a fixture. *(also ROADMAP B2)*
 - [x] **T1.2** ✅ [Next] M — Model provenance: flag weights from file-sharing / unverifiable sources (dropbox/drive/gist/civitai/…) as `untrusted-provenance` in the offline model gate (plugin + CLI). *(remaining: surface source + license in reports)*
 - [x] **T1.3** ✅ [Next] M — Unsafe-serialization coverage: pickle/`.pt`/`.pth`/joblib/`.h5` artifacts + `torch.load`/`pickle.load` calls → critical `unsafe-(de)serialization` with remediation, in the offline model gate (plugin + CLI).
+- [x] **SBOM ingest** ✅ [Now] — `POST /image/check/sbom` in cxray-main (`SbomImporter` parses CycloneDX/SPDX → the same CVE matchers + persistence as the tar scan); backs the console's Import-SBOM tab. Air-gapped / SBOM-first analysis. *(CVE resolution needs OSS-Index egress the dev WAS lacks — see [[cxray-deploy-infra]].)*
 - [ ] **T1.4** [Later] L — Model card / dataset lineage capture into the Agent-BOM (data poisoning provenance).
 - [x] **T1.5** ✅ [Later] M — "KEV for models": offline typosquat / namespace-confusion detection — a `FROM` model whose name is a one-char lookalike of a known family (llama/mistral/…) is flagged (plugin + CLI). *(remaining: a curated trojaned-weights denylist feed)*
 
@@ -65,7 +66,7 @@ Size = S/M/L. Prune and re-tag freely.
 
 ### E4 — Universal CI/CD gate (coverage)
 - [x] **T4.1** ✅ [Now] S — Jenkins plugin: PR/commit status + human-readable "why blocked" (ROADMAP C1).
-- [x] **T4.2** ✅ [Next] M — GitLab CI + Azure DevOps templates shipped (`tools/cxray-gate/ci/`, SARIF into the MR SAST tab / build artifact). *(remaining: Bitbucket)*
+- [x] **T4.2** ✅ [Next] M — GitLab CI + Azure DevOps + **Bitbucket Pipelines** templates shipped (`tools/cxray-gate/ci/`); GitHub Action + Jenkins plugin cover the rest — full CI-platform parity.
 - [ ] **T4.3** [Next] S — Container-native gate: an admission-webhook / `kubectl` mode reusing the same verdicts (shift-right).
 - [x] **T4.4** ✅ [Later] M — Pre-commit hook for the offline checks (`tools/cxray-gate/hooks/` + installer) — auto-detects MCP config / tool manifest / Modelfile, honors `.cxray/policy.json`. *(remaining: an editor/IDE hook)*
 - [x] **T4.5** ✅ [Now] S — Keep plugin + `cxray-gate` CLI normalization identical (shared contract test) — ROADMAP D2.
