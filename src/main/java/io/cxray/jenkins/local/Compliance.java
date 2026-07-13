@@ -37,6 +37,8 @@ public final class Compliance {
                 return "NIST-SSDF PS.3 · SW-supply-chain policy";
             case "secrets":
                 return "OWASP-LLM06 · CWE-798 (hardcoded credentials)";
+            case "packet":
+                return "MITRE ATT&CK T1041 (exfiltration) · ASI06 (agent egress) · NIST-SSDF PW.7";
             default:
                 return "SW-supply-chain policy";
         }
@@ -73,6 +75,8 @@ public final class Compliance {
                 return "Replace or remove the denied-license component, or record an approved exception with an owner and expiry.";
             case "secrets":
                 return "Rotate the exposed secret now, remove it from the image layer/history, and inject it at runtime from a secret store.";
+            case "packet":
+                return "Confirm the outbound destination is expected; if legitimate, allowlist it (allowIps/allowPorts); otherwise remove the phone-home/exfiltration path and enforce an egress network policy.";
             default:
                 return "Review the finding and bring the component into policy, or record an approved, expiring waiver.";
         }

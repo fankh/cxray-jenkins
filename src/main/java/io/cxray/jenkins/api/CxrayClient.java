@@ -111,6 +111,15 @@ public class CxrayClient {
         return CxrayApiGate.ai(get("/ai/scan/" + enc(imageId)));
     }
 
+    /** GET /image/packet/gate/{id} — egress gate over sandbox-captured network flows. */
+    public GateResult packetGate(String imageId, boolean failOnPublicEgress, String allowIps, String allowPorts)
+            throws IOException, InterruptedException {
+        String q = "?failOnPublicEgress=" + failOnPublicEgress
+                + "&allowIps=" + enc(allowIps == null ? "" : allowIps)
+                + "&allowPorts=" + enc(allowPorts == null ? "" : allowPorts);
+        return CxrayApiGate.packet(get("/image/packet/gate/" + enc(imageId) + q));
+    }
+
     /** POST /mcp/gate — authoritative OWASP-Agentic gate for an MCP manifest. */
     public GateResult mcpGate(String serverId, String version, String manifestJson)
             throws IOException, InterruptedException {

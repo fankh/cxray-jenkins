@@ -61,7 +61,7 @@
       <c:select/>
     </f:entry>
     <f:entry title="Gates" field="gates"
-             description="Comma-separated subset of: cve, license, secrets, ai">
+             description="Comma-separated subset of: cve, license, secrets, ai, packet">
       <f:textbox default="cve,license,secrets,ai"/>
     </f:entry>
     <f:entry title="Max CVSS" field="maxCvss"
@@ -71,6 +71,18 @@
     <f:entry title="Fail on KEV" field="failOnKev"
              description="CVE gate fails on any CISA-KEV (actively exploited) CVE.">
       <f:checkbox default="true"/>
+    </f:entry>
+    <f:entry title="Fail on public egress" field="failOnPublicEgress"
+             description="Packet gate (add 'packet' to Gates): fail on outbound flows to public IPs captured during behavioural analysis; uncheck to report as review. Skips when no capture ran.">
+      <f:checkbox default="true"/>
+    </f:entry>
+    <f:entry title="Allow egress IPs" field="allowIps"
+             description="Packet gate: comma-separated target IPs to exempt from egress failure.">
+      <f:textbox/>
+    </f:entry>
+    <f:entry title="Allow egress ports" field="allowPorts"
+             description="Packet gate: comma-separated target ports to exempt (e.g. 53 for DNS).">
+      <f:textbox/>
     </f:entry>
   </f:radioBlock>
 

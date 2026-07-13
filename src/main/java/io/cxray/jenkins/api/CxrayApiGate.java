@@ -65,6 +65,27 @@ public final class CxrayApiGate {
         return new GateResult(verdict, f);
     }
 
+    /**
+     * GET /image/packet/gate/{id} — egress over sandbox-captured network flows. One finding per
+     * public-egress flow. verdict is pass/fail/review, or "skip" when no behavioural capture ran —
+     * "skip" is PRESERVED (not collapsed to pass) so the build shows the check didn't perform.
+     */
+    public static GateResult packet(JsonNode r) {
+        List<Finding> f = new ArrayList<>();
+        String v = txt(r, "verdict");
+        String verdict = "skip".equals(v) ? "skip" : norm(v);
+        String sev = "fail".equals(verdict) ? "critical" : "medium";
+        JsonNode egress = r.get("publicEgress");
+        if (isArray(egress)) for (JsonNode e : egress) {
+            String ip = txt(e, "targetIp");
+            String port = txt(e, "targetPort");
+            String proto = txt(e, "protocol");
+            String dest = ip + (port.isEmpty() ? "" : ":" + port) + (proto.isEmpty() ? "" : "/" + proto);
+            f.add(new Finding("packet", sev, dest, "public egress — outbound to a non-private address", 0));
+        }
+        return new GateResult(verdict, f);
+    }
+
     /** POST /mcp/gate — OWASP-Agentic rules; verdict already pass/review/fail, one finding per non-pass rule. */
     public static GateResult mcp(JsonNode r) {
         List<Finding> f = new ArrayList<>();

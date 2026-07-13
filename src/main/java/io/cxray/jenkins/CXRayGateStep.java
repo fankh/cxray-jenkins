@@ -69,6 +69,10 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
     private String gates = "cve,license,secrets,ai";
     private double maxCvss = 9.0;
     private boolean failOnKev = true;
+    // --- packet/egress gate (opt-in via gates="…,packet"; sandbox-specific — skips when no capture) ---
+    private boolean failOnPublicEgress = true;
+    private String allowIps;
+    private String allowPorts;
 
     // --- api mode: scan-and-gate (P3) — set instead of imageId to scan a registry image first ---
     private String repo;
@@ -118,6 +122,12 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
     @DataBoundSetter public void setMaxCvss(double v) { this.maxCvss = v; }
     public boolean isFailOnKev() { return failOnKev; }
     @DataBoundSetter public void setFailOnKev(boolean v) { this.failOnKev = v; }
+    public boolean isFailOnPublicEgress() { return failOnPublicEgress; }
+    @DataBoundSetter public void setFailOnPublicEgress(boolean v) { this.failOnPublicEgress = v; }
+    public String getAllowIps() { return allowIps; }
+    @DataBoundSetter public void setAllowIps(String v) { this.allowIps = fix(v); }
+    public String getAllowPorts() { return allowPorts; }
+    @DataBoundSetter public void setAllowPorts(String v) { this.allowPorts = fix(v); }
     public String getRepo() { return repo; }
     @DataBoundSetter public void setRepo(String v) { this.repo = fix(v); }
     public String getImage() { return image; }
@@ -290,6 +300,8 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
             if (want.contains("license")) verdict = merge(verdict, all, "License", client.licenseGate(id), log);
             if (want.contains("secrets")) verdict = merge(verdict, all, "Secrets", client.secretsGate(id), log);
             if (want.contains("ai")) verdict = merge(verdict, all, "AI supply-chain", client.aiGate(id), log);
+            if (want.contains("packet")) verdict = merge(verdict, all, "Egress/Packets",
+                    client.packetGate(id, failOnPublicEgress, allowIps, allowPorts), log);
             if (want.contains("mcp")) {
                 String manifest = read(workspace, manifestPath, log);
                 if (manifest == null) {

@@ -6,7 +6,7 @@ violate security policy. Two methods:
 | | Method A — **CXRay API** | Method B — **Local (offline)** |
 |---|---|---|
 | Needs CXRay server + access key | ✅ | ❌ (no network, no credentials) |
-| Container CVE/KEV · license · secrets · AI supply-chain | ✅ | ❌ (needs the backend scanner) |
+| Container CVE/KEV · license · secrets · AI supply-chain · egress/packets | ✅ | ❌ (needs the backend scanner) |
 | Agent/AI-security (poisoning · toxic-capability · transport · identity · model-runtime · prompt-injection · server-allowlist) | ✅ | ✅ (self-contained analyzers) |
 | Inputs | image ref → scanned in CXRay | workspace files (mcp.json / server.json / Modelfile / tools manifest) |
 
@@ -107,11 +107,17 @@ step([$class: 'CXRayGateStep', mode: 'api',
       repo: 'registry.example.com', image: 'my-service', tag: env.GIT_COMMIT,
       credentialsId: 'cxray-access-key', registryCredentialsId: 'my-registry',
       pollTimeoutSec: 900, failOn: 'fail'])
+
+// egress gate: fail on outbound flows to public IPs captured during behavioural (sandbox)
+// analysis. Opt-in via gates="…,packet"; SKIPs (never a false pass) when no capture ran.
+step([$class: 'CXRayGateStep', mode: 'api', imageId: env.CXRAY_IMAGE_ID,
+      credentialsId: 'cxray-access-key', gates: 'cve,packet',
+      failOnPublicEgress: true, allowPorts: '53', failOn: 'fail'])
 ```
 
 The API gates are thin clients — they call `GET /image/cve/gate/{id}` · `/license/policy/{id}` ·
-`/image/secrets/{id}` · `/ai/scan/{id}` and never re-implement policy. An auth/transport error is an
-ERROR (not a security FAILURE).
+`/image/secrets/{id}` · `/ai/scan/{id}` · `/image/packet/gate/{id}` and never re-implement policy.
+An auth/transport error is an ERROR (not a security FAILURE).
 
 ## What the local analyzers check
 
