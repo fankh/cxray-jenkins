@@ -116,7 +116,7 @@ step([$class: 'CXRayGateStep', mode: 'api', imageId: env.CXRAY_IMAGE_ID,
 ```
 
 The API gates are thin clients — they call `GET /image/cve/gate/{id}` · `/license/policy/{id}` ·
-`/image/secrets/{id}` · `/ai/scan/{id}` · `/image/packet/gate/{id}` and never re-implement policy.
+`/image/secrets/{id}` · `/ai/scan/{id}` · `/image/packet/gate/{id}` · `/ai/verify/{id}` and never re-implement policy.
 An auth/transport error is an ERROR (not a security FAILURE).
 
 ## What the local analyzers check

@@ -86,6 +86,24 @@ public final class CxrayApiGate {
         return new GateResult(verdict, f);
     }
 
+    /**
+     * GET /ai/verify/{id} — consolidated AI trust verdict. Flattens each dimension's findings
+     * (model provenance, AI supply-chain, runtime egress) into one gate; the only gate that
+     * enforces model signature/license provenance. verdict already pass/review/fail.
+     */
+    public static GateResult aiVerify(JsonNode r) {
+        List<Finding> f = new ArrayList<>();
+        String verdict = norm(txt(r, "verdict"));
+        JsonNode dims = r.get("dimensions");
+        if (isArray(dims)) for (JsonNode d : dims) {
+            JsonNode fs = d.get("findings");
+            if (isArray(fs)) for (JsonNode x : fs) {
+                f.add(new Finding("ai-verify", txt(x, "severity", "medium"), txt(x, "title"), txt(x, "detail"), 0));
+            }
+        }
+        return new GateResult(verdict, f);
+    }
+
     /** POST /mcp/gate — OWASP-Agentic rules; verdict already pass/review/fail, one finding per non-pass rule. */
     public static GateResult mcp(JsonNode r) {
         List<Finding> f = new ArrayList<>();

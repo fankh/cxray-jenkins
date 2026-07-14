@@ -39,6 +39,8 @@ public final class Compliance {
                 return "OWASP-LLM06 · CWE-798 (hardcoded credentials)";
             case "packet":
                 return "MITRE ATT&CK T1041 (exfiltration) · ASI06 (agent egress) · NIST-SSDF PW.7";
+            case "ai-verify":
+                return "OWASP-LLM03/05 · SLSA-provenance · CISA-KEV · MITRE ATT&CK T1041";
             default:
                 return "SW-supply-chain policy";
         }
@@ -77,6 +79,8 @@ public final class Compliance {
                 return "Rotate the exposed secret now, remove it from the image layer/history, and inject it at runtime from a secret store.";
             case "packet":
                 return "Confirm the outbound destination is expected; if legitimate, allowlist it (allowIps/allowPorts); otherwise remove the phone-home/exfiltration path and enforce an egress network policy.";
+            case "ai-verify":
+                return "Address the failing AI-trust dimension: patch KEV/critical CVEs, ship signed/safetensors model weights, and remove un-allowlisted public egress. See the per-dimension findings.";
             default:
                 return "Review the finding and bring the component into policy, or record an approved, expiring waiver.";
         }

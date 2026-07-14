@@ -302,6 +302,7 @@ public class CXRayGateStep extends Builder implements SimpleBuildStep {
             if (want.contains("ai")) verdict = merge(verdict, all, "AI supply-chain", client.aiGate(id), log);
             if (want.contains("packet")) verdict = merge(verdict, all, "Egress/Packets",
                     client.packetGate(id, failOnPublicEgress, allowIps, allowPorts), log);
+            if (want.contains("ai-verify")) verdict = merge(verdict, all, "AI verification", client.aiVerifyGate(id), log);
             if (want.contains("mcp")) {
                 String manifest = read(workspace, manifestPath, log);
                 if (manifest == null) {

@@ -120,6 +120,11 @@ public class CxrayClient {
         return CxrayApiGate.packet(get("/image/packet/gate/" + enc(imageId) + q));
     }
 
+    /** GET /ai/verify/{id} — consolidated AI trust verdict (model provenance + supply-chain + egress). */
+    public GateResult aiVerifyGate(String imageId) throws IOException, InterruptedException {
+        return CxrayApiGate.aiVerify(get("/ai/verify/" + enc(imageId)));
+    }
+
     /** POST /mcp/gate — authoritative OWASP-Agentic gate for an MCP manifest. */
     public GateResult mcpGate(String serverId, String version, String manifestJson)
             throws IOException, InterruptedException {

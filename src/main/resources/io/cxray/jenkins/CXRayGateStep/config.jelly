@@ -61,7 +61,7 @@
       <c:select/>
     </f:entry>
     <f:entry title="Gates" field="gates"
-             description="Comma-separated subset of: cve, license, secrets, ai, packet">
+             description="Comma-separated subset of: cve, license, secrets, ai, packet, ai-verify">
       <f:textbox default="cve,license,secrets,ai"/>
     </f:entry>
     <f:entry title="Max CVSS" field="maxCvss"
