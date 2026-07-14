@@ -112,14 +112,14 @@ cxrayGate mode: 'api', imageId: env.CXRAY_IMAGE_ID,
           credentialsId: 'cxray-access-key', failOn: 'fail'
 ```
 
-A ready-to-copy pipeline is in [`examples/Jenkinsfile`](examples/Jenkinsfile). Use the **Snippet
+A ready-to-copy pipeline is in [`examples/Jenkinsfile`](../examples/Jenkinsfile). Use the **Snippet
 Generator** (Pipeline Syntax → `cxrayGate`) to build the step visually.
 
 ## 6b. (Optional) Policy-as-code — `.cxray/policy.json`
 
 Commit a `.cxray/policy.json` to the repo and the gate reads it from the workspace; any field present
 **overrides** the job config, so gate policy lives with the code and is honored identically in Jenkins
-and the `cxray-gate` GitHub Action. Example in [`examples/policy.json`](examples/policy.json):
+and the `cxray-gate` GitHub Action. Example in [`examples/policy.json`](../examples/policy.json):
 
 ```json
 {
@@ -144,7 +144,7 @@ and the `cxray-gate` GitHub Action. Example in [`examples/policy.json`](examples
 
 **VEX (`.cxray/vex.json`)** — commit an [OpenVEX](https://openvex.dev) document and the gate drops CVE
 findings whose exploitability `status` is `not_affected` or `fixed`, recomputing the verdict. This is
-the standard, tool-neutral way to silence non-exploitable CVEs. Example: [`examples/vex.json`](examples/vex.json).
+the standard, tool-neutral way to silence non-exploitable CVEs. Example: [`examples/vex.json`](../examples/vex.json).
 
 **Attestation (`attestationPath`)** — set the step's *Attestation path* (e.g. `cxray-attestation.json`)
 to emit an [in-toto](https://in-toto.io) / SLSA-style Statement recording the verdict, severities, and a

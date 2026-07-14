@@ -41,6 +41,12 @@ The five build phases are complete; API mode has full in-JVM HTTP-wire test cove
 
 Remaining follow-up: publishing to the Jenkins Update Center. See [`CHANGELOG.md`](CHANGELOG.md).
 
+## Docs
+
+- **Setup / integration** — [`docs/INTEGRATION.md`](docs/INTEGRATION.md) (install, API-mode credentials, policy-as-code, VEX, attestation, SARIF, troubleshooting, parameter reference)
+- **Roadmap & product backlog** — [`docs/ROADMAP.md`](docs/ROADMAP.md) (plugin tracks + platform strategy)
+- **Changelog** — [`CHANGELOG.md`](CHANGELOG.md) · **Security policy** — [`SECURITY.md`](SECURITY.md)
+
 ## Build & run
 
 ```bash

@@ -25,4 +25,4 @@ This plugin runs security gates inside Jenkins. Its own posture:
   admin-configured CXRay API over TLS.
 - Released `.hpi` artifacts carry a **SHA-256 checksum** and **SLSA build provenance** (GitHub attestations).
 
-See [INTEGRATION.md](INTEGRATION.md) for the full model.
+See [docs/INTEGRATION.md](docs/INTEGRATION.md) for the full model.
