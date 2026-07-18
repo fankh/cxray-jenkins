@@ -9,7 +9,7 @@
     <artifactId>plugin</artifactId>
     <!-- Coordinated triple: this parent + jenkins.version + the BOM below (all real, current
          releases as of 2026-07). Bump together per https://www.jenkins.io/doc/developer/ -->
-    <version>6.2208.vb_6798604237e</version>
+    <version>6.2211.v27f680c93c53</version>
     <relativePath/>
   </parent>
 
