@@ -87,7 +87,7 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>jackson2-api</artifactId>
-      <version>2.22.0-439.vb_b_43658d6176</version>
+      <version>2.22.2-445.vdc613f1d8012</version>
     </dependency>
     <!-- @Symbol("cxrayGate") for the pipeline step name + Snippet Generator -->
     <dependency>
